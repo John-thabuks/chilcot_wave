@@ -1,0 +1,270 @@
+from config import db, bcrypt
+
+# bcrypt will work with hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property
+
+# serializerMixin
+from sqlalchemy_serializer import SerializerMixin
+
+#validates using  __table_args__
+from sqlalchemy.orm import validates
+
+
+#Regex for email
+import re
+
+
+
+class Users(db.Model, SerializerMixin):
+    __tablename__ = "users"
+
+    __mapper_args__ ={
+        "polymophic_on": "type",
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(), nullable=False)
+    last_name = db.Column(db.String(), nullable=False)
+    username = db.Column(db.String(), nullable=False, unique=True)
+    email = db.Column(db.String(), unique=True, nullable=False)
+    _password_hash = db.Column(db.String(), nullable=False)
+    type = db.Column(db.String(), nullable=False)   #Adimn or Staff
+    permissions = db.Column(db.Text)    #Rights stored in JSON format
+
+
+    EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
+
+    @validates('email', "username")
+    def validate_email(self, key, value):
+        """
+            Validates email at the database level before storing
+        """
+
+        if key == "email" and not re.match(self.EMAIL_REGEX, value):
+            raise ValueError("Invalid email format")
+        
+        if key == "username" and len(value) <= 3:
+            raise ValueError("Username must be at least more that 3 characters long")
+        return value
+
+
+
+    @hybrid_property
+    def password(self):
+        return self._password_hash
+
+    @password.setter
+    def password(self, new_password):
+        self._password_hash = bcrypt.generate_password_hash(new_password).encode("utf-8")
+        
+    def authenticate_password(self, user_password):
+        return bcrypt.check_password_hash(self._password_hash, user_password.encode("utf-8"))
+    
+    def __repr__(self):
+        return f"<Users {self.first_name} {self.last_name} {self.type}>"
+    
+
+class Admin(Users):
+
+    __tablename__ = "admins"
+    
+    __mapper_args__ = {
+        "polymorphic_identity": "Admin"
+    }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.permissions = {
+            'vendor': ['C', 'R', 'U', 'D'],   # Admin can Create, Read, Update, Delete vendors
+            'customer': ['C', 'R', 'U', 'D'],  
+            'invoice': ['C', 'R', 'U', 'D'],  
+            'purchase': ['C', 'R', 'U', 'D'],  
+            'local_purchase_order': ['C', 'R', 'U', 'D'],  
+            'item': ['C', 'R', 'U', 'D'],  
+            'category': ['C', 'R', 'U', 'D'],  
+            'serial_number': ['C', 'R', 'U', 'D'],  
+            'quotation': ['C', 'R', 'U', 'D'],  
+            'payment': ['C', 'R', 'U', 'D'],  
+            'delivery': ['C', 'R', 'U', 'D'],  
+            'currency': ['C', 'R', 'U', 'D']
+            }
+
+
+class Staff(db.Model, Users):
+
+    __tablename__ = "staffs"
+
+    __mapper_args__ = {
+        "polymorphic_identity": "Staff"
+    }
+
+    date_employed = db.Column(db.Date, nullable=False)
+    department = db.Column(db.String(), nullable=False)
+    date_exited = db.Column(db.Date(), nullable=True)
+
+    def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
+        super().__init__(**kwargs)
+        self.permissions = {
+            'vendor': ['C', 'R', 'U'],   # Staff can only Create, Read, Update vendors (no delete)
+            'customer': ['C', 'R', 'U'],
+            'invoice': ['C', 'R', 'U'],
+            'purchase': ['C', 'R', 'U'],
+            'local_purchase_order': ['C', 'R', 'U'],
+            'item': ['C', 'R', 'U'],
+            'category': ['C', 'R', 'U'],
+            'serial_number': ['C', 'R', 'U'],
+            'quotation': ['C', 'R', 'U'],
+            'payment': ['C', 'R', 'U'],
+            'delivery': ['C', 'R', 'U'],
+            'currency': ['C', 'R', 'U']
+            }
+        self.date_employed = date_employed
+        self.date_exited = date_exited
+        self.department = department
+
+
+# Customer class
+class Customer(db.Model, SerializerMixin):
+    __table_name__ = "customers"
+
+    __table_args__ = {}
+
+    id =db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(), nullable=False, index=True, unique=True)
+    email = db.Column(db.String(), nullable=False, unique=True)
+    phone = db.Column(db.Integer(), nullable=False, unique=True)
+    kra_pin = db.Column(db.String(),nullable=True, unque=True, index=True)
+    location = db.Column(db.String())
+    country = db.Column(db.String(), default="Kenya")
+    currency = db.Column(db.String(), nullable=False, default="KSHS")
+    date_enrolled = db.Column(db.DateTime(), default= db.func.current_timestamp())
+    date_last_updated = db.Column(db.DateTime(), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    active = db.Column(db.Boolean(), default=True, nullable=False)
+    account_limit = db.Column(db.Integer(), default=0, nullable=False)
+
+
+    #foreignKey
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)  #Admin
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id", nullable=False))  #staff
+
+
+    #serialize
+    serialize_only =(name, email, phone, kra_pin)
+    
+
+    #Relationship
+    admin = db.relationship("Admin", backref="customers", lazy=True)
+    staff = db.relationship("Staff", backref="customers", lazy=True)
+    
+#Vendor class
+class Vendor(db.Model, SerializerMixin):
+
+    __tablename__ = "vendors"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False, unique=True)
+    name = db.Column(db.String(), nullable=False, unique=True, index=True)
+    email = db.Column(db.String(), nullable=False, unique=True, index=True)
+    phone = db.Column(db.Integer(), nullable= False, unique=True)
+    kra_pin = db.Column(db.String(), nullable= True, unique=True, index=True)
+    location = db.Column(db.String(), nullable=False)
+    country = db.Column(db.String(), default="Kenya")
+    currency = db.Column(db.String(), nullable=False, default="KSHS")
+    date_registered = db.Column(db.Date(), default=db.current_timestamp())
+    active = db.Column(db.boolean())
+
+    #email validation
+    EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
+
+    @validates("email", "name")
+    def validations(self, key, value):
+        if key == "email" and not re.match(self.EMAIL_REGEX, value):
+            raise ValueError( "Invalide email address")
+        
+        if key == "name" and value < 3:
+            raise ValueError("Name must be at least 3 letters")
+        return value
+    
+    #foreign key
+    admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=False)
+
+
+    #serialize
+    serialize_only = (name, email, phone, kra_pin)
+
+
+    #Relationship
+    admin = db.relationship("Admin", backref="vendors", lazy=True)
+    staff = db.relationship("Staff", backref="staffs", lazy=True)
+
+
+#Invoice
+class Invoice(db.Model, SerializerMixin):
+    
+    __tablename__ = "invoices"
+
+    id = db.Column(db.Integer(), foreign_key=True, unique=True)
+    invoice_number = db.Column(db.Integer(), nullable=False, unique=True)
+    date_created = db.Column(db.Date(), default= db.current_timestamp(), nullable=False)
+    days_until_due = db.Column(db.Integer(), default= 30)
+    due_date = db.Column(db.Date, server_default= db.func.date(db.fun.current_date(), "+30 days"))
+
+    
+    #Foreign Key
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)
+
+
+
+    #Relationship
+    admin =db.relationship("Admin", backref="invoices", lazy=True)
+    staff = db.relationship("Staff", backref="invoices", lazy=True)
+
+
+
+    def __init__(self, creator, days_until_due=None) -> None:
+
+        """
+        Initialize an Invoice: It expects either Admin or Staff instance for 'creator'
+
+        :param creator: Either an Admin or Staff instance created the invoice
+
+        :param days_until_due: optional, customize the number of days until the invoice is due. 
+        """
+
+        if isinstance(creator, Admin):
+            self.admin_id = creator.id
+
+        elif isinstance(creator, Staff):
+            self.staff_id = creator.id
+
+        else:
+            raise ValueError("Creator must be an Admin or Staff")
+
+        if days_until_due is not None:
+            self.days_until_due = days_until_due
+            self.due_date = db.func.date(self.date_created, f"+{self.days_until_due} days")
+            self.invoice_number = self.generate_invoice_number()
+    
+    
+    #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
+
+    __table_args__ ={
+        db.CheckConstraint(
+            "admin_id IS NOT NULL OR staff_id IS NOT NULL", name= "check_admin_or_staff"
+        ),
+    }
+
+
+    def generate_invoice_number(self):
+        """
+        Purpose: function that will auto increment the invoice_number
+        """
+
+        last_invoice = Invoice.query.order_by(Invoice.id.desc()).first()
+
+        if last_invoice:
+            return last_invoice.invoice_number + 1
+        return 700000
+    
+    
