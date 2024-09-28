@@ -126,8 +126,7 @@ class Staff(db.Model, Users):
 # Customer class
 class Customer(db.Model, SerializerMixin):
     __table_name__ = "customers"
-
-    __table_args__ = {}
+    
 
     id =db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False, index=True, unique=True)
@@ -150,6 +149,20 @@ class Customer(db.Model, SerializerMixin):
 
     #serialize
     serialize_only =(name, email, phone, kra_pin)
+
+    # regex Constant for mail
+    EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
+
+    #validate
+    @validates("email", "name")
+    def validations(self, key, value):
+        if key == "email" and not re.match(self.EMAIL_REGEX, value):
+            raise ValueError("Invalid Email address ")
+        
+        elif key == "name" and value < 3:
+            raise ValueError("Name must be at least 3 characters long")
+        
+        return value
     
 
     #Relationship
@@ -208,17 +221,20 @@ class Invoice(db.Model, SerializerMixin):
     date_created = db.Column(db.Date(), default= db.current_timestamp(), nullable=False)
     days_until_due = db.Column(db.Integer(), default= 30)
     due_date = db.Column(db.Date, server_default= db.func.date(db.fun.current_date(), "+30 days"))
+    
 
     
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)
+    currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=True) #one currency can have multiple invoices
 
 
 
     #Relationship
     admin =db.relationship("Admin", backref="invoices", lazy=True)
     staff = db.relationship("Staff", backref="invoices", lazy=True)
+    currency = db.relationship("Currency", backref="invoices", lazy=True)
 
 
 
@@ -255,6 +271,8 @@ class Invoice(db.Model, SerializerMixin):
         ),
     }
 
+    #serialize 
+    serialize_only = (invoice_number, date_created, days_until_due, due_date)
 
     def generate_invoice_number(self):
         """
@@ -266,5 +284,4 @@ class Invoice(db.Model, SerializerMixin):
         if last_invoice:
             return last_invoice.invoice_number + 1
         return 700000
-    
     
