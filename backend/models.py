@@ -488,7 +488,10 @@ class Payment(db.Model, SerializerMixin):
     date_paid = db.Column(db.Date(), default= db.date.current_timestamp())
     payment_reference = db.Column(db.String(), nullable=True)
 
+    #serialize
+    serialize_only = (payment_mode, date_paid, payment_reference)
 
+    
     #Foreign Key
     invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
@@ -510,6 +513,7 @@ class Payment(db.Model, SerializerMixin):
     items = db.relationship("Item", secondary="payment_items", backref="payments", nullable=False, lazy=True)
 
 
-
+# Quotation
+class Quotation(db.Model, SerializerMixin):
 
 
