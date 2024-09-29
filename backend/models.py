@@ -367,7 +367,7 @@ class Item(db.Model, SerializerMixin):
         self.amount =self.calculate_amount()
         self.vat = self.calculate_vat(vat_percentage)
         self.total = self.calculate_total()
-        self.currency_id = currency_id = currency_id
+        self.currency_id = currency_id 
         
     #calculate Amount
     def calculate_amount(self):
