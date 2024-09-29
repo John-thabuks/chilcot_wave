@@ -345,7 +345,7 @@ class Item(db.Model, SerializerMixin):
     #Foreign Key
     invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
     category_id = db.Column(db.Integer(), db.ForeignKey("categories.id"), nullable=False)
-    serial_number_id = db.Column(db.Integer(), db.ForeignKey("serial_numbers.id"), nullable=False)
+    serial_number_id = db.Column(db.Integer(), db.ForeignKey("serial_numbers.id"), nullable=False, unique=True)
     currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=False)
 
@@ -396,4 +396,14 @@ class Category(db.Model, SerializerMixin):
     name = db.Column(db.String(), nullable=False)
 
 
+#Serial numbers for each product
+class SerialNumber(db.Model, SerializerMixin):
+    __tablename__ = "serial_numbers"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    serial = db.Column(db.String(), nullable=False, unique=True, index=True)
+
+
+    #relationship
+    item = db.relationship("Item", backref="serial_number", uselist=False, lazy=True)
     
