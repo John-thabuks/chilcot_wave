@@ -237,6 +237,7 @@ class Invoice(db.Model, SerializerMixin):
     currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False) #one currency can have multiple invoices
     customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=False)
     
+    
 
 
 
@@ -246,6 +247,7 @@ class Invoice(db.Model, SerializerMixin):
     currency = db.relationship("Currency", backref="invoices", lazy=True)
     customer = db.relationship("Customer", backref="invoices", lazy=True)
     purchases = db.relationship("Purchase", secondary="purchase_invoice", backref="invoices", lazy=True)
+    
 
 
 
@@ -348,6 +350,7 @@ class Item(db.Model, SerializerMixin):
     serial_number_id = db.Column(db.Integer(), db.ForeignKey("serial_numbers.id"), nullable=False, unique=True)
     currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=False)
+    lpo_id = db.Column(db.Integer(),db.ForeignKey("lpos.id"))
 
 
 
@@ -356,6 +359,8 @@ class Item(db.Model, SerializerMixin):
     category = db.relationship("Category", backref="items", lazy=True)
     currency = db.relationship("Currency", backref="items", lazy=True)
     purchase =db.relationship("Purchase", backref="items", lazy=True)
+    lpo = db.relationship("Lpo", backref="items", lazy=True)
+
 
     #for different instances
     def __init__(self, category_id, description, serial_number_id, quantity, price, vat_percentage, currency_id):
@@ -418,3 +423,37 @@ class Currency(db.Model, SerializerMixin):
     name = db.Column(db.String(), nullable=False, )
     symbol = db.Column(db.String(), nullable=False, unique=True)
     exchange_rate = db.Column(db.Float(), nullable=False)
+
+
+#LPO
+class Lpo(db.Model, SerializerMixin):
+    __tablename__ = "lpos"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    lpo_number = db.Column(db.Integer(), nullable=False, unique=True)
+    date_issued = db.Column(db.Date, default=db.current_timestamp())
+    days_until_due = db.Column(db.Date(), default=30)
+    date_due = db.Column(db.Date(), server_default=db.func.date(db.fun.current_date(), "+30 days"))
+
+
+    #Foreign Key
+    vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
+
+
+    #Relationship
+    vendor = db.relationship("Vendor", backref="lpos", lazy=True)
+
+
+    #Initialization
+    def __init__(self, days_until_due=None):
+        if days_until_due is not None:
+            self.days_until_due=days_until_due
+            self.date_due = db.func.day(self.date_issued, f"+{self.days_until_due} days")
+        
+
+
+    #Function to auto increment LPO number
+    def lpo_number_increment(self, instance):
+        if isinstance(instance, Lpo):
+            instance.lpo_number = instance.id + 1
+        return 3000
