@@ -403,7 +403,18 @@ class SerialNumber(db.Model, SerializerMixin):
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
     serial = db.Column(db.String(), nullable=False, unique=True, index=True)
 
+    #serialize
+    serialize_only = (serial,)
 
     #relationship
     item = db.relationship("Item", backref="serial_number", uselist=False, lazy=True)
     
+
+#Currency
+class Currency(db.Model, SerializerMixin):
+    __tablename__ = "currencies"
+
+    id = db.Column(db.Integer(), primary_key=True, unique=True)
+    name = db.Column(db.String(), nullable=False, )
+    symbol = db.Column(db.String(), nullable=False, unique=True)
+    exchange_rate = db.Column(db.Float(), nullable=False)
