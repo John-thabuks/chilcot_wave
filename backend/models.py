@@ -14,6 +14,12 @@ from sqlalchemy.orm import validates
 import re
 
 
+#Association table: Purchase and Invoice
+purchase_invoice = db.Table("purchase_table",
+    db.Column("purchase_id", db.ForeignKey("purchases.id"), primary_key=True),
+    db.Column("invoice_id", db.ForeignKey("invoices.id"), primary_key=True)
+)
+
 
 class Users(db.Model, SerializerMixin):
     __tablename__ = "users"
@@ -221,13 +227,16 @@ class Invoice(db.Model, SerializerMixin):
     date_created = db.Column(db.Date(), default= db.current_timestamp(), nullable=False)
     days_until_due = db.Column(db.Integer(), default= 30)
     due_date = db.Column(db.Date, server_default= db.func.date(db.fun.current_date(), "+30 days"))
+    notes = db.Column(db.String(), nullable=True)
     
 
     
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)
-    currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=True) #one currency can have multiple invoices
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
+    currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False) #one currency can have multiple invoices
+    customer_id = db.Column(db.Iteger(), db.ForeignKey("customers.id"), nullable=False)
+    purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
 
 
 
@@ -235,6 +244,9 @@ class Invoice(db.Model, SerializerMixin):
     admin =db.relationship("Admin", backref="invoices", lazy=True)
     staff = db.relationship("Staff", backref="invoices", lazy=True)
     currency = db.relationship("Currency", backref="invoices", lazy=True)
+    customer = db.relationship("Customer", backref="invoices", lazy=True)
+    purchase = db.relationship("Purchase", secondary="purchase_invoice", back_populate="invoices", lazy=True)
+
 
 
 
@@ -264,7 +276,6 @@ class Invoice(db.Model, SerializerMixin):
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
-
     __table_args__ ={
         db.CheckConstraint(
             "admin_id IS NOT NULL OR staff_id IS NOT NULL", name= "check_admin_or_staff"
@@ -284,4 +295,32 @@ class Invoice(db.Model, SerializerMixin):
         if last_invoice:
             return last_invoice.invoice_number + 1
         return 700000
-    
+
+
+#Purchase 
+class Purchase(db. Model, SerializerMixin):
+
+    __tablename__ = "purchases"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    pruchase_number = db.Column(db.Integer(), nullable=False)
+    date_purchased = db.Column(db.Date, nullable=False, default=db.func.current_timestamp())
+    date_due = db.Column(db.Date, nullable=False)
+    delivered_by = db.Column(db.String(), nullable=False)
+    delivery_date = db.Column(db.Date, nullable=False)
+
+
+
+
+    #Foreign Key
+    vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
+    lpo_id = db.Column(db.Integer(), db.ForeignKey("lpos.id"), nullable=True)
+    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=True)
+
+
+
+    #Relationship
+    vendor = db.relationship("Vendor", backref="purchases", lazy=True)
+    lpo = db.relationship("LPO", backref="purchases", lazy=True)
+    invoice = db.relationship("Invoice", secondary="purchase_invoice", back_populate="purchases")
+
