@@ -386,3 +386,14 @@ class Item(db.Model, SerializerMixin):
         self.amount *= exchange_rate
         self.vat *= exchange_rate
         self.total = self.amount + self.vat
+
+
+#Category
+class Category(db.Model, SerializerMixin):
+    __tablename__ = "categories"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    name = db.Column(db.String(), nullable=False)
+
+
+    
