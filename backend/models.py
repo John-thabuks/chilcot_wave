@@ -491,7 +491,7 @@ class Payment(db.Model, SerializerMixin):
     #serialize
     serialize_only = (payment_mode, date_paid, payment_reference)
 
-    
+
     #Foreign Key
     invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
@@ -512,8 +512,78 @@ class Payment(db.Model, SerializerMixin):
     customer = db.relationship("Customer", backref="payments", lazy=True)
     items = db.relationship("Item", secondary="payment_items", backref="payments", nullable=False, lazy=True)
 
+    #Initialization
+    def __init__(self, instance):
+        
+        """
+        Initialize Payment: It expects either Admin or Staff instance for 'instance'
+
+        :param instance: Either an Admin or Staff instance made the payment
+        """
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+
+        elif isinstance(instance, Staff)            :
+            self.staff_id = instance.id
+
+        else:
+            raise ValueError("Payment can only be made by Admin or Staff")
+
 
 # Quotation
 class Quotation(db.Model, SerializerMixin):
+    __tablename__ = "quotations"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    quotation_number = db.Column(db.String(), nullable=False, unique=True)
+    quotation_date = db.Column(db.Date(), default= db.date.current_timestamp())
+    quotation_days = db.Column(db.Date(), default=30)
+    quotation_due = db.Column(db.Date(), server_default=db.dunc.date(db.func.current_day(), "+30 days"))
+
+
+    #Foreign Key
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
+    item_id =db.Column(db.Integer(), db.ForeignKey("items.id"), nullable=False)
+
+
+    #Relationship
+    admin = db.relationship("Admin", backref="quotations", lazy=True)
+    staff = db.relationship("Staff", backref="quotations", lazy=True)
+    items = db.relationship("Item", backref="quotations", lazy=True)
+
+
+    #initialization
+    def __init__(self,instance, quotation_days=None):
+        """
+        Initialize quotation: It expects either Admin or Staff instance for 'instance'
+
+        :param instance: Either an Admin or Staff instance created the quotation
+
+        :param quotation_days: optional, customize the number of days until the quotation is due. 
+        """
+
+        if instance(instance, Admin):
+            self.admin_id = instance.id
+
+        elif instance(instance, Staff):
+            self.staff_id = instance.id
+
+        else:
+            raise ValueError("Creator must be an Admin or Staff")
+
+        if quotation_days is not None:
+            self.quotation_days = quotation_days
+            self.quotation_due = db.func.day(self.quotation_date, f"+{self.quotation_days} days")
+        self.quotation_increment = self.quotation_increment()
+
+
+    #quotation auto-increment
+    def quotation_increment(self):
+        last_quotation_number = Quotation.query.order_by(Quotation.quotation_number.desc()).first()
+        if last_quotation_number:
+            return last_quotation_number.quotation_number + 1
+
+        return 700000
 
 
