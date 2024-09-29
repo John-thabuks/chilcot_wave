@@ -310,7 +310,8 @@ class Purchase(db. Model, SerializerMixin):
     delivery_date = db.Column(db.Date, nullable=False)
 
 
-
+    #Serialize
+    serialize_only =(purchase_number, date_purchased, date_due, delivery_date, delivered_by)
 
     #Foreign Key
     vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
@@ -324,3 +325,64 @@ class Purchase(db. Model, SerializerMixin):
     lpo = db.relationship("LPO", backref="purchases", lazy=True)
     invoices = db.relationship("Invoice", secondary="purchase_invoice", backref="purchases", lazy=True)
 
+
+#Item
+class Item(db.Model, SerializerMixin):
+    __tablename__ = "items"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    description = db.Column(db.String(), nullable=False)
+    quantity = db.Column(db.Integer(), nullable=False)
+    price = db.Column(db.Integer(), nullable=False)
+    amount = db.Column(db.Float(), nullable=False)
+    vat = db.Column(db.Float(), nullable=True)
+    discount = db.Column(db.Float(), nullable=True)
+    total = db.Column(db.Float(), nullable=False)
+
+    #serialize
+    serialize_only = (description,quantity,price,amount,vat, discount,total)
+
+    #Foreign Key
+    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
+    category_id = db.Column(db.Integer(), db.ForeignKey("categories.id"), nullable=False)
+    serial_number_id = db.Column(db.Integer(), db.ForeignKey("serial_numbers.id"), nullable=False)
+    currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False)
+    purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=False)
+
+
+
+    #Relationship
+    invoice = db.relationship("Invoice", backref ="items", lazy=True)
+    category = db.relationship("Category", backref="items", lazy=True)
+    currency = db.relationship("Currency", backref="items", lazy=True)
+    purchase =db.relationship("Purchase", backref="items", lazy=True)
+
+    #for different instances
+    def __init__(self, category_id, description, serial_number_id, quantity, price, vat_percentage, currency_id):
+        self.category_id = category_id
+        self.description =description
+        self.serial_number_id = serial_number_id
+        self.quantity = quantity
+        self.price = price
+        self.amount =self.calculate_amount()
+        self.vat = self.calculate_vat(vat_percentage)
+        self.total = self.calculate_total()
+        self.currency_id = currency_id = currency_id
+        
+    #calculate Amount
+    def calculate_amount(self):
+        return self.quantity * self.price
+
+    #calculate vat
+    def calculate_vat(self, vat_percentage):
+        return (vat_percentage / 100) *self.amount
+    
+    #calculate the total amount
+    def calculate_total(self):
+        return self.amount + self.vat
+    
+    #exchange rate change
+    def update_currency(self, exchange_rate):
+        self.amount *= exchange_rate
+        self.vat *= exchange_rate
+        self.total = self.amount + self.vat
