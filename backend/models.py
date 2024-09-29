@@ -13,11 +13,21 @@ from sqlalchemy.orm import validates
 #Regex for email
 import re
 
+# Enum for Payment varification
+from sqlalchemy import Enum
+
 
 #Association table: Purchase and Invoice
 purchase_invoice = db.Table("purchase_invoice",
     db.Column("purchase_id", db.ForeignKey("purchases.id"), primary_key=True),
     db.Column("invoice_id", db.ForeignKey("invoices.id"), primary_key=True)
+)
+
+# Association table: Payments and Items
+
+payment_items = db.Table("payment_items",
+db.Column("payment_id", db.ForeignKey("payments.id"), primary_key=True),
+db.Column("items_id", db.ForeignKey("items.id"), primary_key=True)
 )
 
 
@@ -360,6 +370,7 @@ class Item(db.Model, SerializerMixin):
     currency = db.relationship("Currency", backref="items", lazy=True)
     purchase =db.relationship("Purchase", backref="items", lazy=True)
     lpo = db.relationship("Lpo", backref="items", lazy=True)
+    payment = db.relationship("Payment", secondary="payment_items", backref="items", nullable=False, lazy=True)
 
 
     #for different instances
@@ -457,3 +468,48 @@ class Lpo(db.Model, SerializerMixin):
         if isinstance(instance, Lpo):
             instance.lpo_number = instance.id + 1
         return 3000
+
+# PaymentModeEnum 
+class PaymentModeEnum(Enum):
+    CASH = "cash"
+    MPESA = "mpesa"
+    BANK_TRANSFER = "bank_transfer"
+    CHEQUE ="cheque"
+    BANK_DEPOSIT = "bank_deposit"
+    OTHERS = "others"
+
+
+#Payment
+class Payment(db.Model, SerializerMixin):
+    __tablename__ = "payments"
+
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    payment_mode = db.Column(Enum(PaymentModeEnum), nullable=False)
+    date_paid = db.Column(db.Date(), default= db.date.current_timestamp())
+    payment_reference = db.Column(db.String(), nullable=True)
+
+
+    #Foreign Key
+    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
+    purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
+    customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=False)
+
+
+
+
+    #Relationship
+    invoice = db.relationship("Invoice", backref="payments", lazy=True)
+    purchase = db.relationship("Purchase", backref="payments", lazy=True)
+    staff = db.relationship("Staff", backref="payments", lazy=True)
+    admin= db.relationship("Admin", backref="payments", lazy=True)
+    vendor = db.relationship("Vendor", backref="payments", lazy=True)
+    customer = db.relationship("Customer", backref="payments", lazy=True)
+    items = db.relationship("Item", secondary="payment_items", backref="payments", nullable=False, lazy=True)
+
+
+
+
+
