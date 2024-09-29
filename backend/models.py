@@ -15,7 +15,7 @@ import re
 
 
 #Association table: Purchase and Invoice
-purchase_invoice = db.Table("purchase_table",
+purchase_invoice = db.Table("purchase_invoice",
     db.Column("purchase_id", db.ForeignKey("purchases.id"), primary_key=True),
     db.Column("invoice_id", db.ForeignKey("invoices.id"), primary_key=True)
 )
@@ -222,7 +222,7 @@ class Invoice(db.Model, SerializerMixin):
     
     __tablename__ = "invoices"
 
-    id = db.Column(db.Integer(), foreign_key=True, unique=True)
+    id = db.Column(db.Integer(), primary_key=True, unique=True)
     invoice_number = db.Column(db.Integer(), nullable=False, unique=True)
     date_created = db.Column(db.Date(), default= db.current_timestamp(), nullable=False)
     days_until_due = db.Column(db.Integer(), default= 30)
@@ -235,8 +235,8 @@ class Invoice(db.Model, SerializerMixin):
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
     currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False) #one currency can have multiple invoices
-    customer_id = db.Column(db.Iteger(), db.ForeignKey("customers.id"), nullable=False)
-    purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
+    customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=False)
+    
 
 
 
@@ -245,7 +245,7 @@ class Invoice(db.Model, SerializerMixin):
     staff = db.relationship("Staff", backref="invoices", lazy=True)
     currency = db.relationship("Currency", backref="invoices", lazy=True)
     customer = db.relationship("Customer", backref="invoices", lazy=True)
-    purchase = db.relationship("Purchase", secondary="purchase_invoice", back_populate="invoices", lazy=True)
+    purchases = db.relationship("Purchase", secondary="purchase_invoice", backref="invoices", lazy=True)
 
 
 
@@ -303,7 +303,7 @@ class Purchase(db. Model, SerializerMixin):
     __tablename__ = "purchases"
 
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
-    pruchase_number = db.Column(db.Integer(), nullable=False)
+    purchase_number = db.Column(db.Integer(), nullable=False)
     date_purchased = db.Column(db.Date, nullable=False, default=db.func.current_timestamp())
     date_due = db.Column(db.Date, nullable=False)
     delivered_by = db.Column(db.String(), nullable=False)
@@ -315,12 +315,12 @@ class Purchase(db. Model, SerializerMixin):
     #Foreign Key
     vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
     lpo_id = db.Column(db.Integer(), db.ForeignKey("lpos.id"), nullable=True)
-    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=True)
+    
 
 
 
     #Relationship
     vendor = db.relationship("Vendor", backref="purchases", lazy=True)
     lpo = db.relationship("LPO", backref="purchases", lazy=True)
-    invoice = db.relationship("Invoice", secondary="purchase_invoice", back_populate="purchases")
+    invoices = db.relationship("Invoice", secondary="purchase_invoice", backref="purchases", lazy=True)
 
