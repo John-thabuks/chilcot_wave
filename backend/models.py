@@ -664,10 +664,14 @@ class JobCard(db.Model, SerializerMixin):
     description = db.Column(db.String(), nullable=False)
     quanity = db.Column(db.Integer(), nullable=False)
 
+    #Foreign Key
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admin.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staff.id"), nullable=False)
 
     #relationship
     invoice = db.relationship("Invoice", secondary=jobcard_invoice, backref="jobcards", lazy=True)
-
+    admin = db.relationship("Admin", backref="admins", lazy=True)
+    staff = db.relationship("Staff", backref="staffs", lazy=True)
 
     #Initialization
     def __init__(self):
