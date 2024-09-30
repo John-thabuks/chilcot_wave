@@ -674,7 +674,11 @@ class JobCard(db.Model, SerializerMixin):
     staff = db.relationship("Staff", backref="staffs", lazy=True)
 
     #Initialization
-    def __init__(self):
+    def __init__(self, instance):
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+        elif isinstance(isinstance, Staff):
+            self.staff_id = instance.id
         self.job_card_number = self.auto_increment_job_card_number()
 
 
