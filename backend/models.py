@@ -19,15 +19,15 @@ from sqlalchemy import Enum
 
 #Association table: Purchase and Invoice
 purchase_invoice = db.Table("purchase_invoice",
-    db.Column("purchase_id", db.ForeignKey("purchases.id"), primary_key=True),
-    db.Column("invoice_id", db.ForeignKey("invoices.id"), primary_key=True)
+    db.Column("purchase_id",db.Integer(), db.ForeignKey("purchases.id"), primary_key=True),
+    db.Column("invoice_id",db.Integer(), db.ForeignKey("invoices.id"), primary_key=True)
 )
 
 # Association table: Payments and Items
 
 payment_items = db.Table("payment_items",
-    db.Column("payment_id", db.ForeignKey("payments.id"), primary_key=True),
-    db.Column("items_id", db.ForeignKey("items.id"), primary_key=True)
+    db.Column("payment_id",db.Integer(), db.ForeignKey("payments.id"), primary_key=True),
+    db.Column("items_id",db.Integer(), db.ForeignKey("items.id"), primary_key=True)
 )
 
 # # Association table: Items and Delivery
@@ -35,6 +35,12 @@ payment_items = db.Table("payment_items",
 #     db.Column("item_id", db.Iteger(), db.FoereignKey("items.id"), primary_key=True, nullable=False),
 #     db.Column("delivery_id", db.Integer(), db.ForeignKey("deliverynotes.id"), primary_key=True, nullable=False)
 # )
+
+# Association table: JobCard and Invoice
+jobcard_invoice = db.Table("jobcard_invoice",
+    db.Column("jobcard_id",db.Integer(), db.ForeignKey("jobcards.id"), primary_key=True),
+    db.Column("invoice_id",db.Integer(), db.ForeignKey("invoices.id"), primary_key=True)
+)
 
 
 class Users(db.Model, SerializerMixin):
@@ -244,6 +250,7 @@ class Invoice(db.Model, SerializerMixin):
     days_until_due = db.Column(db.Integer(), default= 30)
     due_date = db.Column(db.Date, server_default= db.func.date(db.fun.current_date(), "+30 days"))
     notes = db.Column(db.String(), nullable=True)
+    client_lpo_number = db.Column(db.String(), nullable=False)
     
 
     
@@ -262,7 +269,8 @@ class Invoice(db.Model, SerializerMixin):
     staff = db.relationship("Staff", backref="invoices", lazy=True)
     currency = db.relationship("Currency", backref="invoices", lazy=True)
     customer = db.relationship("Customer", backref="invoices", lazy=True)
-    purchases = db.relationship("Purchase", secondary="purchase_invoice", backref="invoices", lazy=True)
+    purchases = db.relationship("Purchase", secondary=purchase_invoice, backref="invoices", lazy=True)
+    jobcard = db.Column("JobCard", secondary=jobcard_invoice, backref="invoices", lazy=True)
     
 
 
@@ -341,7 +349,7 @@ class Purchase(db. Model, SerializerMixin):
     #Relationship
     vendor = db.relationship("Vendor", backref="purchases", lazy=True)
     lpo = db.relationship("LPO", backref="purchases", lazy=True)
-    invoices = db.relationship("Invoice", secondary="purchase_invoice", backref="purchases", lazy=True)
+    invoices = db.relationship("Invoice", secondary=purchase_invoice, backref="purchases", lazy=True)
 
 
 #Item
@@ -376,7 +384,7 @@ class Item(db.Model, SerializerMixin):
     currency = db.relationship("Currency", backref="items", lazy=True)
     purchase =db.relationship("Purchase", backref="items", lazy=True)
     lpo = db.relationship("Lpo", backref="items", lazy=True)
-    payment = db.relationship("Payment", secondary="payment_items", backref="items", nullable=False, lazy=True)
+    payment = db.relationship("Payment", secondary=payment_items, backref="items", nullable=False, lazy=True)
     # item = db.relationship("DeliveryNote", secondary="item_delivery", backref="items", nullable=False, lazy=True)
 
 
@@ -517,7 +525,7 @@ class Payment(db.Model, SerializerMixin):
     admin= db.relationship("Admin", backref="payments", lazy=True)
     vendor = db.relationship("Vendor", backref="payments", lazy=True)
     customer = db.relationship("Customer", backref="payments", lazy=True)
-    items = db.relationship("Item", secondary="payment_items", backref="payments", nullable=False, lazy=True)
+    items = db.relationship("Item", secondary=payment_items, backref="payments", nullable=False, lazy=True)
 
     #Initialization
     def __init__(self, instance):
@@ -638,10 +646,40 @@ class DeliveryNote(db.Model, SerializerMixin):
             return last_delivery_number.delivery_number + 1
         return 700000
 
+
+# Enum class
+class JobCardStatus(Enum):
+    COMPLETED= "completed"
+    IN_PROGRESS = "in_progress"
+    CANCELED = "canceled"
+
 # Job card
 class JobCard(db.Model, SerializerMixin):
+    __tablename__ = "jobcards"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    job_card_number = db.Column(db.Integer(), nullable=False, unique=True)
+    job_card_date = db.Column(db.Date(), default = db.date.current_timestamp())
+    job_card_status = db.Column(Enum(JobCardStatus), nullable=False, default="in_progress")
+    description = db.Column(db.String(), nullable=False)
+    quanity = db.Column(db.Integer(), nullable=False)
 
 
+    #relationship
+    invoice = db.relationship("Invoice", secondary=jobcard_invoice, backref="jobcards", lazy=True)
 
+
+    #Initialization
+    def __init__(self):
+        self.job_card_number = self.auto_increment_job_card_number()
+
+
+    #Auto-increment job_car_number
+    def auto_increment_job_card_number(self):
+        last_job_card_number = JobCard.query.order_by(JobCard.job_card_number.desc()).first()
+        if last_job_card_number:
+            return last_job_card_number.job_card_number + 1
+        else:
+            return 1300
 
 
