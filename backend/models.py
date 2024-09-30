@@ -26,8 +26,14 @@ purchase_invoice = db.Table("purchase_invoice",
 # Association table: Payments and Items
 
 payment_items = db.Table("payment_items",
-db.Column("payment_id", db.ForeignKey("payments.id"), primary_key=True),
-db.Column("items_id", db.ForeignKey("items.id"), primary_key=True)
+    db.Column("payment_id", db.ForeignKey("payments.id"), primary_key=True),
+    db.Column("items_id", db.ForeignKey("items.id"), primary_key=True)
+)
+
+# Association table: Items and Delivery
+item_delivery = db.Table("item_delivery",
+    db.Column("item_id", db.Iteger(), db.FoereignKey("items.id"), primary_key=True, nullable=False),
+    db.Column("delivery_id", db.Integer(), db.ForeignKey("deliverynotes.id"), primary_key=True, nullable=False)
 )
 
 
@@ -371,6 +377,7 @@ class Item(db.Model, SerializerMixin):
     purchase =db.relationship("Purchase", backref="items", lazy=True)
     lpo = db.relationship("Lpo", backref="items", lazy=True)
     payment = db.relationship("Payment", secondary="payment_items", backref="items", nullable=False, lazy=True)
+    item = db.relationship("DeliveryNote", secondary="item_delivery", backref="items", nullable=False, lazy=True)
 
 
     #for different instances
@@ -591,6 +598,44 @@ class Quotation(db.Model, SerializerMixin):
 
 # Delivery note
 class DeliveryNote(db.Model, SerializerMixin):
+    __tablename__ = "deliverynotes"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    delivery_number = db.Column(db.Integer(), nullable=False, unique=True)
+    delivery_date = db.Column(db.DateTime(), nullable=False, default=db.func.current_timestamp())
+
+
+
+    #Foreign Key
+    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
+
+    #Relationship
+    invoice = db.relationship("Invoice", backref="deliverynotes", lazy=True)
+    item = db.relationship("Item", secondary="item_delivery", backref="deliverynotes", lazy=True)
+    admin = db.relationship("Admin", backref="deliverynotes", lazy=True)
+    staff = db.relationship("Staff", backref="deliverynotes", lazy=True)
+
+
+    #initialization
+    def __init__(self, instance):
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+        elif isinstance(instance, Staff)            :
+            self.staff_id = instance.id
+        else:
+            raise ValueError("Can only be create by an Admin or Staff")
+        
+        self.delivery_number = self.delivery_increment()
+        
+
+    # To auto increment delivery_number
+    def increment_delivery_number(self):
+        last_delivery_number = DeliveryNote.query.order_by(DeliveryNote.delivery_number.desc()).first()
+        if last_delivery_number:
+            return last_delivery_number.delivery_number + 1
+        return 700000
 
 
 
