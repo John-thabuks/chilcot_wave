@@ -30,11 +30,11 @@ payment_items = db.Table("payment_items",
     db.Column("items_id", db.ForeignKey("items.id"), primary_key=True)
 )
 
-# Association table: Items and Delivery
-item_delivery = db.Table("item_delivery",
-    db.Column("item_id", db.Iteger(), db.FoereignKey("items.id"), primary_key=True, nullable=False),
-    db.Column("delivery_id", db.Integer(), db.ForeignKey("deliverynotes.id"), primary_key=True, nullable=False)
-)
+# # Association table: Items and Delivery
+# item_delivery = db.Table("item_delivery",
+#     db.Column("item_id", db.Iteger(), db.FoereignKey("items.id"), primary_key=True, nullable=False),
+#     db.Column("delivery_id", db.Integer(), db.ForeignKey("deliverynotes.id"), primary_key=True, nullable=False)
+# )
 
 
 class Users(db.Model, SerializerMixin):
@@ -377,7 +377,7 @@ class Item(db.Model, SerializerMixin):
     purchase =db.relationship("Purchase", backref="items", lazy=True)
     lpo = db.relationship("Lpo", backref="items", lazy=True)
     payment = db.relationship("Payment", secondary="payment_items", backref="items", nullable=False, lazy=True)
-    item = db.relationship("DeliveryNote", secondary="item_delivery", backref="items", nullable=False, lazy=True)
+    # item = db.relationship("DeliveryNote", secondary="item_delivery", backref="items", nullable=False, lazy=True)
 
 
     #for different instances
@@ -604,7 +604,8 @@ class DeliveryNote(db.Model, SerializerMixin):
     delivery_number = db.Column(db.Integer(), nullable=False, unique=True)
     delivery_date = db.Column(db.DateTime(), nullable=False, default=db.func.current_timestamp())
 
-
+    #Serialize
+    serialize_only = (delivery_date, delivery_number)
 
     #Foreign Key
     invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
@@ -613,7 +614,7 @@ class DeliveryNote(db.Model, SerializerMixin):
 
     #Relationship
     invoice = db.relationship("Invoice", backref="deliverynotes", lazy=True)
-    item = db.relationship("Item", secondary="item_delivery", backref="deliverynotes", lazy=True)
+    # item = db.relationship("Item", secondary="item_delivery", backref="deliverynotes", lazy=True)
     admin = db.relationship("Admin", backref="deliverynotes", lazy=True)
     staff = db.relationship("Staff", backref="deliverynotes", lazy=True)
 
@@ -637,7 +638,8 @@ class DeliveryNote(db.Model, SerializerMixin):
             return last_delivery_number.delivery_number + 1
         return 700000
 
-
+# Job card
+class JobCard(db.Model, SerializerMixin):
 
 
 
