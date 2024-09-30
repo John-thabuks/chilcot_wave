@@ -540,6 +540,8 @@ class Quotation(db.Model, SerializerMixin):
     quotation_days = db.Column(db.Date(), default=30)
     quotation_due = db.Column(db.Date(), server_default=db.dunc.date(db.func.current_day(), "+30 days"))
 
+    # serialization
+    serialize_only= (quotation_number, quotation_date, quotation_due)
 
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
@@ -585,5 +587,14 @@ class Quotation(db.Model, SerializerMixin):
             return last_quotation_number.quotation_number + 1
 
         return 700000
+
+
+# Delivery note
+class DeliveryNote(db.Model, SerializerMixin):
+
+
+
+
+
 
 
