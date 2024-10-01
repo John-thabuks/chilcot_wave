@@ -128,6 +128,7 @@ class Admin(Users):
     payments= db.relationship("Admin", backref="admin", lazy=True)
     lpos = db.relationship("Lpo", backref="admin", lazy=True)
     categories= db.relationship("Category", backref="admin", lazy=True)
+    purchases = db.relationship("Purchase", backref="admin", lazy=True)
 
 class Staff(db.Model, Users):
 
@@ -168,6 +169,7 @@ class Staff(db.Model, Users):
     payments = db.relationship("Staff", backref="staff", lazy=True)
     lpos = db.relationship("Lpo", backref="staff", lazy=True)
     categories = db.relationship("Category", backref="staff", lazy=True)
+    purchases = db.relationship("Purchase", backref="staff", lazy=True)
 
 # Customer class
 class Customer(db.Model, SerializerMixin):
@@ -259,6 +261,7 @@ class Vendor(db.Model, SerializerMixin):
     staff = db.relationship("Staff", backref="vendor", lazy=True)
     payments = db.relationship("Vendor", backref="vendor", lazy=True)
     lpos = db.relationship("Vendor", backref="vendor", lazy=True)
+    purchases = db.relationship("Vendor", backref="vendor", lazy=True)
 
 
 #Invoice
@@ -353,7 +356,8 @@ class Purchase(db. Model, SerializerMixin):
     __tablename__ = "purchases"
 
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
-    purchase_number = db.Column(db.Integer(), nullable=False)
+    purchase_number = db.Column(db.Integer(), nullable=False, default=2000)
+    invoice_number = db.Column(db.String(), nullable=True)
     date_purchased = db.Column(db.Date, nullable=False, default=db.func.current_timestamp())
     date_due = db.Column(db.Date, nullable=False)
     delivered_by = db.Column(db.String(), nullable=False)
@@ -361,21 +365,43 @@ class Purchase(db. Model, SerializerMixin):
 
 
     #Serialize
-    serialize_only =(purchase_number, date_purchased, date_due, delivery_date, delivered_by)
+    serialize_only =("purchase_number", "date_purchased", "date_due", "delivery_date", "delivered_by")
 
-    #Foreign Key
-    items =db.relationship("Purchase", backref="purchase", lazy=True)
+    #Foreign Key    
     vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
     lpo_id = db.Column(db.Integer(), db.ForeignKey("lpos.id"), nullable=True)
-    payments = db.relationship("Purchase", backref="purchase", lazy=True)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staff.id"), nullable=False)
+
+    #Initialization
+    def __init__(self, date_purchased, date_due, delivered_by, delivery_date, instance):
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+        elif isinstance(instance,Staff):
+            self.staff_id = instance.id
+
+        self.date_purchased = date_purchased
+        self.date_due = date_due
+        self.delivered_by = delivered_by
+        self.delivery_date = delivery_date
+        self.invoice_number = self.increment_purchase_number()
+    
+    
+    # Increment Purchase number
+    def increment_purchase_number(self):
+        new_purchase = Purchase.query.order_by(Purchase.purchase_number.desc()).first()
+        if new_purchase:
+            return new_purchase.purchase_number + 1
+        return 2000
     
 
-
-
     #Relationship
-    vendor = db.relationship("Vendor", backref="purchases", lazy=True)
-    lpo = db.relationship("LPO", backref="purchases", lazy=True)
-    invoices = db.relationship("Invoice", secondary=purchase_invoice, backref="purchases", lazy=True)
+    items =db.relationship("Item", backref="purchase", lazy=True)    
+    lpos = db.relationship("Lpo", backref="purchase", lazy=True)
+    invoices = db.relationship("Invoice", secondary=purchase_invoice, backref="purchase", lazy=True)
+    payments = db.relationship("Payment", backref="purchase", lazy=True)
+    
+    
 
 #Vat Enum
 class VatEnum(Enum):
