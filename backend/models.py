@@ -129,6 +129,7 @@ class Admin(Users):
     lpos = db.relationship("Lpo", backref="admin", lazy=True)
     categories= db.relationship("Category", backref="admin", lazy=True)
     purchases = db.relationship("Purchase", backref="admin", lazy=True)
+    invoices =db.relationship("Admin", backref="admin", lazy=True)
 
 class Staff(db.Model, Users):
 
@@ -170,6 +171,7 @@ class Staff(db.Model, Users):
     lpos = db.relationship("Lpo", backref="staff", lazy=True)
     categories = db.relationship("Category", backref="staff", lazy=True)
     purchases = db.relationship("Purchase", backref="staff", lazy=True)
+    invoices = db.relationship("Staff", backref="staff", lazy=True)
 
 # Customer class
 class Customer(db.Model, SerializerMixin):
@@ -215,9 +217,10 @@ class Customer(db.Model, SerializerMixin):
     
 
     #Relationship
-    admin = db.relationship("Admin", backref="customers", lazy=True)
-    staff = db.relationship("Staff", backref="customers", lazy=True)
-    payments = db.relationship("Customer", backref="customers", lazy=True)
+    admin = db.relationship("Admin", backref="customer", lazy=True)
+    staff = db.relationship("Staff", backref="customer", lazy=True)
+    payments = db.relationship("Customer", backref="customer", lazy=True)
+    invoices = db.relationship("Customer", backref="customer", lazy=True)
     
 #Vendor class
 class Vendor(db.Model, SerializerMixin):
@@ -270,10 +273,10 @@ class Invoice(db.Model, SerializerMixin):
     __tablename__ = "invoices"
 
     id = db.Column(db.Integer(), primary_key=True, unique=True)
-    invoice_number = db.Column(db.Integer(), nullable=False, unique=True)
-    date_created = db.Column(db.Date(), default= db.current_timestamp(), nullable=False)
+    invoice_number = db.Column(db.Integer(), nullable=False, unique=True, default=700000)
+    date_created = db.Column(db.Date(), default= db.func.current_date(), nullable=False)
     days_until_due = db.Column(db.Integer(), default= 30)
-    due_date = db.Column(db.Date, server_default= db.func.date(db.func.current_date(), "+30 days"))
+    due_date = db.Column(db.Date(), nullable=False)
     notes = db.Column(db.String(), nullable=True)
     client_lpo_number = db.Column(db.String(), nullable=False)
     vat_file = db.Column(db.String())
@@ -283,21 +286,16 @@ class Invoice(db.Model, SerializerMixin):
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
-    currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False) #one currency can have multiple invoices
     customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=False)
     
 
 
-    #Relationship
-    admin =db.relationship("Admin", backref="invoice", lazy=True)
-    staff = db.relationship("Staff", backref="invoice", lazy=True)
-    currency = db.relationship("Currency", backref="invoice", lazy=True)
-    customer = db.relationship("Customer", backref="invoice", lazy=True)
+    #Relationship    
     purchases = db.relationship("Purchase", secondary=purchase_invoice, backref="invoices", lazy=True)
     jobcard = db.relationship   ("JobCard", secondary=jobcard_invoice, backref="invoices", lazy=True)
-    deliverynotes = db.relationship("Invoice", backref="invoice", lazy=True)
-    payments = db.relationship("Invoice", backref="invoice", lazy=True)
-    items = db.relationship("Invoice", backref ="invoice", lazy=True)
+    deliverynotes = db.relationship("DeliveryNote", backref="invoice", lazy=True)
+    payments = db.relationship("Payment", backref="invoice", lazy=True)
+    items = db.relationship("Item", backref ="invoice", lazy=True)
     
 
 
@@ -325,7 +323,7 @@ class Invoice(db.Model, SerializerMixin):
         if days_until_due is not None:
             self.days_until_due = days_until_due
             self.due_date = db.func.date(self.date_created, f"+{self.days_until_due} days")
-            self.invoice_number = self.generate_invoice_number()
+        self.invoice_number = self.generate_invoice_number()
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
