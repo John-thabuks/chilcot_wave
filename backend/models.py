@@ -51,7 +51,7 @@ class Users(db.Model, SerializerMixin):
     __tablename__ = "users"
 
     __mapper_args__ ={
-        "polymophic_on": "type",
+        "polymorphic_on": "type",
     }
 
     id = db.Column(db.Integer, primary_key=True)
@@ -87,7 +87,7 @@ class Users(db.Model, SerializerMixin):
 
     @password.setter
     def password(self, new_password):
-        self._password_hash = bcrypt.generate_password_hash(new_password).encode("utf-8")
+        self._password_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
         
     def authenticate_password(self, user_password):
         return bcrypt.check_password_hash(self._password_hash, user_password.encode("utf-8"))
@@ -122,17 +122,18 @@ class Admin(Users):
             }
 
     #relationship
-    jobcards = db.relationship("Admin", backref="admin", lazy=True)
-    deliverynotes = db.relationship("Admin", backref="admin", lazy=True)
-    quotations = db.relationship("Admin", backref="admin", lazy=True)
-    payments= db.relationship("Admin", backref="admin", lazy=True)
+    jobcards = db.relationship("JobCard", backref="admin", lazy=True)
+    deliverynotes = db.relationship("DeliveryNote", backref="admin", lazy=True)
+    quotations = db.relationship("Quotation", backref="admin", lazy=True)
+    payments= db.relationship("Payment", backref="admin", lazy=True)
     lpos = db.relationship("Lpo", backref="admin", lazy=True)
     categories= db.relationship("Category", backref="admin", lazy=True)
     purchases = db.relationship("Purchase", backref="admin", lazy=True)
-    invoices =db.relationship("Admin", backref="admin", lazy=True)
+    invoices =db.relationship("Invoice", backref="admin", lazy=True)
     vendors = db.relationship("Vendor", backref="admin", lazy=True)
+    customers = db.relationship("Customer", backref="admin", lazy=True)
 
-class Staff(db.Model, Users):
+class Staff( Users):
 
     __tablename__ = "staffs"
 
@@ -165,15 +166,24 @@ class Staff(db.Model, Users):
         self.department = department
 
     #relationship
-    jobcards = db.relationship("Staff", backref="staff", lazy=True)
-    deliverynotes = db.relationship("Staff", backref="staff", lazy=True)
-    quotations = db.relationship("Staff", backref="staff", lazy=True)
-    payments = db.relationship("Staff", backref="staff", lazy=True)
+    jobcards = db.relationship("JobCard", backref="staff", lazy=True)
+    deliverynotes = db.relationship("DeliveryNote", backref="staff", lazy=True)
+    quotations = db.relationship("Quotation", backref="staff", lazy=True)
+    payments = db.relationship("Payment", backref="staff", lazy=True)
     lpos = db.relationship("Lpo", backref="staff", lazy=True)
     categories = db.relationship("Category", backref="staff", lazy=True)
     purchases = db.relationship("Purchase", backref="staff", lazy=True)
-    invoices = db.relationship("Staff", backref="staff", lazy=True)
-    vendor = db.relationship("Vendor", backref="staff", lazy=True)
+    invoices = db.relationship("Invoice", backref="staff", lazy=True)
+    vendors = db.relationship("Vendor", backref="staff", lazy=True)
+    customers = db.relationship("Customer", backref="staff", lazy=True)
+
+# Currency Enum
+class CurrencyEnum(Enum):
+    KSHS = "Kshs"
+    USD = "USD"
+    POUND = "Pound"
+    EURO = "Euro"
+
 
 # Customer class
 class Customer(db.Model, SerializerMixin):
@@ -184,52 +194,67 @@ class Customer(db.Model, SerializerMixin):
     name = db.Column(db.String(), nullable=False, index=True, unique=True)
     email = db.Column(db.String(), nullable=False, unique=True)
     phone = db.Column(db.Integer(), nullable=False, unique=True)
-    kra_pin = db.Column(db.String(),nullable=True, unque=True, index=True)
+    kra_pin = db.Column(db.String(),nullable=True, unique=True, index=True)
     location = db.Column(db.String())
     country = db.Column(db.String(), default="Kenya")
-    currency = db.Column(db.String(), nullable=False, default="KSHS")
-    date_enrolled = db.Column(db.DateTime(), default= db.func.current_timestamp())
+    currency = db.Column(Enum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS)
+    date_enrolled = db.Column(db.Date(), default= db.func.current_date())
     date_last_updated = db.Column(db.DateTime(), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     active = db.Column(db.Boolean(), default=True, nullable=False)
-    account_limit = db.Column(db.Integer(), default=0, nullable=False)
+    account_limit = db.Column(db.Integer(), nullable=False)
 
 
     #foreignKey
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)  #Admin
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id", nullable=False))  #staff
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False))  #staff
 
-
+    #initialize
+    def __init__(self,name, email, phone, kra_pin, location, country, account_limit, instance):
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+        elif isinstance(instance, Staff):
+            self.staff_id = instance.id
+        self.name = name
+        self.email = email
+        self.phone = phone
+        self.kra_pin = kra_pin
+        self.location = location
+        self.country = country
+        self.account_limit = account_limit
+        
+    #Account limit change: Upward or Downward
+    def update_account_limit(self, new_account_limit, instance):
+        if not isinstance(instance, Admin):
+            raise PermissionError("Only Admin can update the account limit")
+        if new_account_limit < 0:
+            raise ValueError("Account limit must be greater than 0")
+        self.account_limit = new_account_limit
+        
+        self.active = new_account_limit > 0
 
     #serialize
-    serialize_only =(name, email, phone, kra_pin)
+    serialize_only =("name", "email", "phone", "kra_pin", "location","country", "currency", "date_enrolled", "date_last_updated", "active", "account_limit")
 
     # regex Constant for mail
     EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
 
     #validate
-    @validates("email", "name")
+    @validates("email", "name", "phone")
     def validations(self, key, value):
         if key == "email" and not re.match(self.EMAIL_REGEX, value):
             raise ValueError("Invalid Email address ")
         
-        elif key == "name" and value < 3:
+        if key == "name" and len(value) < 3:
             raise ValueError("Name must be at least 3 characters long")
         
+        if key == "phone" and not value.isdigit():
+            raise ValueError("Invalid phone number: Phone number must be a digit")
         return value
     
 
-    #Relationship
-    admin = db.relationship("Admin", backref="customer", lazy=True)
-    staff = db.relationship("Staff", backref="customer", lazy=True)
-    payments = db.relationship("Customer", backref="customer", lazy=True)
-    invoices = db.relationship("Customer", backref="customer", lazy=True)
-
-# Currency Enum
-class CurrencyEnum(Enum):
-    KSHS = "Kshs"
-    USD = "USD"
-    POUND = "Pound"
-    EURO = "Euro"
+    #Relationship        
+    payments = db.relationship("Payment", backref="customer", lazy=True)
+    invoices = db.relationship("Invoice", backref="customer", lazy=True)
 
 
 #Vendor class
