@@ -130,6 +130,7 @@ class Admin(Users):
     categories= db.relationship("Category", backref="admin", lazy=True)
     purchases = db.relationship("Purchase", backref="admin", lazy=True)
     invoices =db.relationship("Admin", backref="admin", lazy=True)
+    vendors = db.relationship("Vendor", backref="admin", lazy=True)
 
 class Staff(db.Model, Users):
 
@@ -172,6 +173,7 @@ class Staff(db.Model, Users):
     categories = db.relationship("Category", backref="staff", lazy=True)
     purchases = db.relationship("Purchase", backref="staff", lazy=True)
     invoices = db.relationship("Staff", backref="staff", lazy=True)
+    vendor = db.relationship("Vendor", backref="staff", lazy=True)
 
 # Customer class
 class Customer(db.Model, SerializerMixin):
@@ -221,7 +223,15 @@ class Customer(db.Model, SerializerMixin):
     staff = db.relationship("Staff", backref="customer", lazy=True)
     payments = db.relationship("Customer", backref="customer", lazy=True)
     invoices = db.relationship("Customer", backref="customer", lazy=True)
-    
+
+# Currency Enum
+class CurrencyEnum(Enum):
+    KSHS = "Kshs"
+    USD = "USD"
+    POUND = "Pound"
+    EURO = "Euro"
+
+
 #Vendor class
 class Vendor(db.Model, SerializerMixin):
 
@@ -234,37 +244,49 @@ class Vendor(db.Model, SerializerMixin):
     kra_pin = db.Column(db.String(), nullable= True, unique=True, index=True)
     location = db.Column(db.String(), nullable=False)
     country = db.Column(db.String(), default="Kenya")
-    currency = db.Column(db.String(), nullable=False, default="KSHS")
-    date_registered = db.Column(db.Date(), default=db.current_timestamp())
-    active = db.Column(db.boolean())
+    currency = db.Column(Enum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS.value)
+    date_registered = db.Column(db.Date(), default=db.func.current_date())
+    active = db.Column(db.Boolean(), default=True)
 
     #email validation
     EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
 
-    @validates("email", "name")
+    @validates("email", "name", "phone")
     def validations(self, key, value):
         if key == "email" and not re.match(self.EMAIL_REGEX, value):
             raise ValueError( "Invalide email address")
         
-        if key == "name" and value < 3:
+        if key == "name" and len(value) < 3:
             raise ValueError("Name must be at least 3 letters")
+        
+    
+        if key == "phone" and not value.isdigit():
+            raise ValueError("Invalid phone number: Phone number must be digits")
+        
         return value
     
     #foreign key
-    admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=False)
-    staff_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=False)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
 
 
     #serialize
-    serialize_only = (name, email, phone, kra_pin)
+    serialize_only = ("name", "email", "phone", "kra_pin")
 
+    #initialize
+    def __init__(self, name, email, phone, kra_pin, location, country, currency=CurrencyEnum.KSHS) -> None:
+        self.name = name
+        self.email = email
+        self.phone = phone
+        self.kra_pin = kra_pin
+        self.location =location
+        self.country =country
+        self.currency = currency
 
     #Relationship
-    admin = db.relationship("Admin", backref="vendors", lazy=True)
-    staff = db.relationship("Staff", backref="vendor", lazy=True)
-    payments = db.relationship("Vendor", backref="vendor", lazy=True)
-    lpos = db.relationship("Vendor", backref="vendor", lazy=True)
-    purchases = db.relationship("Vendor", backref="vendor", lazy=True)
+    payments = db.relationship("Payment", backref="vendor", lazy=True)
+    lpos = db.relationship("Lpo", backref="vendor", lazy=True)
+    purchases = db.relationship("Purchase", backref="vendor", lazy=True)
 
 
 #Invoice
@@ -564,13 +586,6 @@ class SerialNumber(db.Model, SerializerMixin):
 
     #relationship
     item = db.relationship("Item", backref="serial_number", uselist=False, lazy=True)
-    
-# Currency Enum
-class CurrencyEnum(Enum):
-    KSHS = "Kshs"
-    USD = "USD"
-    POUND = "Pound"
-    EURO = "Euro"
 
 
 #Currency
