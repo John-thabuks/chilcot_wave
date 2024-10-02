@@ -403,7 +403,7 @@ class Purchase(db. Model, SerializerMixin):
     vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
     lpo_id = db.Column(db.Integer(), db.ForeignKey("lpos.id"), nullable=True)
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staff.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
 
     #Initialization
     def __init__(self, date_purchased, date_due, delivered_by, delivery_date, instance):
