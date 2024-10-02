@@ -313,7 +313,8 @@ class Invoice(db.Model, SerializerMixin):
     due_date = db.Column(db.Date(), nullable=False)
     notes = db.Column(db.String(), nullable=True)
     client_lpo_number = db.Column(db.String(), nullable=False)
-    vat_file = db.Column(db.String())
+    vat_file_name = db.Column(db.String(), nullable=True)
+    vat_file_path = db.Column(db.String(), nullable=True)
     
 
     
@@ -335,7 +336,7 @@ class Invoice(db.Model, SerializerMixin):
 
 
 
-    def __init__(self, creator, days_until_due=None) -> None:
+    def __init__(self, creator,vat_file_name=None, vat_file_path=None, days_until_due=None) -> None:
 
         """
         Initialize an Invoice: It expects either Admin or Staff instance for 'creator'
@@ -358,6 +359,8 @@ class Invoice(db.Model, SerializerMixin):
             self.days_until_due = days_until_due
             self.due_date = db.func.date(self.date_created, f"+{self.days_until_due} days")
         self.invoice_number = self.generate_invoice_number()
+        self.vat_file_name = vat_file_name
+        self.vat_file_path = vat_file_path
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
@@ -790,6 +793,8 @@ class DeliveryNote(db.Model, SerializerMixin):
     id = db.Column(db.Integer(), primary_key=True)
     delivery_number = db.Column(db.Integer(), nullable=False, unique=True)
     delivery_date = db.Column(db.Date(), nullable=False, default=db.func.current_date())
+    delivery_file_name = db.Column(db.String(), nullable=True)
+    delivery_file_path = db.Column(db.String(), nullable=True)
 
     #Serialize
     serialize_only = ("delivery_date", "delivery_number")
@@ -803,7 +808,7 @@ class DeliveryNote(db.Model, SerializerMixin):
     
 
     #initialization
-    def __init__(self, instance, invoice_id):
+    def __init__(self, instance, invoice_id, delivery_file_name=None, delivery_file_path=None):
         self.invoice_id = invoice_id
 
         if isinstance(instance, Admin):
@@ -814,6 +819,8 @@ class DeliveryNote(db.Model, SerializerMixin):
             raise ValueError("Can only be create by an Admin or Staff")
         
         self.delivery_number = self.increment_delivery_number()
+        self.delivery_file_name = delivery_file_name
+        self.delivery_file_path = delivery_file_path
         
 
     # To auto increment delivery_number
