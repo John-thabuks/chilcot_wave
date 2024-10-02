@@ -37,6 +37,7 @@ class Users(db.Model, SerializerMixin):
 
     __mapper_args__ ={
         "polymorphic_on": "type",
+        "polymorphic_identity": "users"
     }
 
     id = db.Column(db.Integer, primary_key=True)
@@ -89,7 +90,7 @@ class Admin(Users):
         "polymorphic_identity": "Admin"
     }
 
-    id = db.Column(db.Column(), primary_key=True, nullable=False)
+    id = db.Column(db.Integer(), db.ForeignKey('users.id'),primary_key=True, nullable=False)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.permissions = {
@@ -126,7 +127,7 @@ class Staff( Users):
     __mapper_args__ = {
         "polymorphic_identity": "Staff"
     }
-    id = db.Column(db.Integer(), primary_key=True, nullable=False)
+    id = db.Column(db.Integer(),db.ForeignKey('users.id'), primary_key=True, nullable=False)
     date_employed = db.Column(db.Date, nullable=False)
     department = db.Column(db.String(), nullable=False)
     date_exited = db.Column(db.Date(), nullable=True)
