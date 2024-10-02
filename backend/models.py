@@ -174,7 +174,7 @@ class CurrencyEnum(enum.Enum):
 
 # Customer class
 class Customer(db.Model, SerializerMixin):
-    __table_name__ = "customers"
+    __tablename__ = "customers"
     
 
     id =db.Column(db.Integer, primary_key=True)
