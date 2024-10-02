@@ -1,0 +1,6 @@
+[
+  {
+    "type": "sqlite",
+    "path": "/home/thabuks/Desktop/React-Flask_Project/chilcot_wave/backend/instance/wave.db"
+  }
+]
