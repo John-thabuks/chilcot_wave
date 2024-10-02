@@ -9,14 +9,13 @@ from sqlalchemy_serializer import SerializerMixin
 #validates using  __table_args__
 from sqlalchemy.orm import validates
 
-#Value error
-from sqlalchemy.exc import ValidationError
 
 #Regex for email
 import re
 
 # Enum for Payment varification
-from sqlalchemy import Enum
+import enum
+from sqlalchemy import Enum as SQLEnum
 
 
 #Association table: Purchase and Invoice
@@ -25,20 +24,6 @@ purchase_invoice = db.Table("purchase_invoice",
     db.Column("invoice_id",db.Integer(), db.ForeignKey("invoices.id"), primary_key=True)
 )
 
-# Association table: Payments and Items
-
-# payment_items = db.Table("payment_items",
-#     db.Column("payment_id",db.Integer(), db.ForeignKey("payments.id"), primary_key=True),
-#     db.Column("items_id",db.Integer(), db.ForeignKey("items.id"), primary_key=True)
-# )
-
-
-
-# # Association table: Items and Delivery
-# item_delivery = db.Table("item_delivery",
-#     db.Column("item_id", db.Iteger(), db.FoereignKey("items.id"), primary_key=True, nullable=False),
-#     db.Column("delivery_id", db.Integer(), db.ForeignKey("deliverynotes.id"), primary_key=True, nullable=False)
-# )
 
 # Association table: JobCard and Invoice
 jobcard_invoice = db.Table("jobcard_invoice",
@@ -104,6 +89,7 @@ class Admin(Users):
         "polymorphic_identity": "Admin"
     }
 
+    id = db.Column(db.Column(), primary_key=True, nullable=False)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.permissions = {
@@ -140,7 +126,7 @@ class Staff( Users):
     __mapper_args__ = {
         "polymorphic_identity": "Staff"
     }
-
+    id = db.Column(db.Integer(), primary_key=True, nullable=False)
     date_employed = db.Column(db.Date, nullable=False)
     department = db.Column(db.String(), nullable=False)
     date_exited = db.Column(db.Date(), nullable=True)
@@ -178,7 +164,7 @@ class Staff( Users):
     customers = db.relationship("Customer", backref="staff", lazy=True)
 
 # Currency Enum
-class CurrencyEnum(Enum):
+class CurrencyEnum(enum.Enum):
     KSHS = "Kshs"
     USD = "USD"
     POUND = "Pound"
@@ -197,7 +183,7 @@ class Customer(db.Model, SerializerMixin):
     kra_pin = db.Column(db.String(),nullable=True, unique=True, index=True)
     location = db.Column(db.String())
     country = db.Column(db.String(), default="Kenya")
-    currency = db.Column(Enum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS)
+    currency = db.Column(SQLEnum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS)
     date_enrolled = db.Column(db.Date(), default= db.func.current_date())
     date_last_updated = db.Column(db.DateTime(), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     active = db.Column(db.Boolean(), default=True, nullable=False)
@@ -206,7 +192,7 @@ class Customer(db.Model, SerializerMixin):
 
     #foreignKey
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)  #Admin
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False))  #staff
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)  #staff
 
     #initialize
     def __init__(self,name, email, phone, kra_pin, location, country, account_limit, instance):
@@ -269,7 +255,7 @@ class Vendor(db.Model, SerializerMixin):
     kra_pin = db.Column(db.String(), nullable= True, unique=True, index=True)
     location = db.Column(db.String(), nullable=False)
     country = db.Column(db.String(), default="Kenya")
-    currency = db.Column(Enum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS.value)
+    currency = db.Column(SQLEnum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS.value)
     date_registered = db.Column(db.Date(), default=db.func.current_date())
     active = db.Column(db.Boolean(), default=True)
 
@@ -374,11 +360,11 @@ class Invoice(db.Model, SerializerMixin):
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
-    __table_args__ ={
+    __table_args__ =(
         db.CheckConstraint(
             "admin_id IS NOT NULL OR staff_id IS NOT NULL", name= "check_admin_or_staff"
         ),
-    }
+    )
 
     #serialize 
     serialize_only = ("invoice_number", "date_created", "days_until_due", "due_date")
@@ -449,7 +435,7 @@ class Purchase(db. Model, SerializerMixin):
     
 
 #Vat Enum
-class VatEnum(Enum):
+class VatEnum(enum.Enum):
     VAT_0 = 0
     VAT_2 = 0.02
     VAT_10 = 0.1
@@ -465,7 +451,7 @@ class Item(db.Model, SerializerMixin):
     price = db.Column(db.Float(), nullable=False)
     amount = db.Column(db.Float(), nullable=False)
     vat = db.Column(db.Float(), nullable=True)
-    vat_percentage = db.Column(Enum(VatEnum), default=VatEnum.VAT_16)
+    vat_percentage = db.Column(SQLEnum(VatEnum), default=VatEnum.VAT_16)
     discount = db.Column(db.Float(), nullable=True)
     total = db.Column(db.Float(), nullable=False)
 
@@ -541,34 +527,34 @@ class Item(db.Model, SerializerMixin):
     @validates("amount")
     def validate_amount(self, key, value):
         if value < 0:
-            raise ValidationError("Amount can't be negative")
+            raise ValueError("Amount can't be negative")
         return value
     
     @validates("vat")
     def validate_vat(self, key, value):
         if value < 0:
-            raise ValidationError("VAT can't be negative")
+            raise ValueError("VAT can't be negative")
         return value
 
     @validates("total")
     def validate_total(self, key, value):
         if value < 0:
-            raise ValidationError("Total can't be negative")
+            raise ValueError("Total can't be negative")
         return value
 
     @validates("vat_percentage")
     def validate_vat_percentage(self, key, value):
         vat_percentage_value = float(value.value)
         if not (0 <= vat_percentage_value <= 1):
-            raise ValidationError("VAT percentage must be between 0 and 1")
+            raise ValueError("VAT percentage must be between 0 and 1")
         return value
 
     @validates("discount")
     def validate_discount(self, key, value):
         if value is not None and value < 0:
-            raise ValidationError("Discount can never be a negative")
+            raise ValueError("Discount can never be a negative")
         if value and value > self.amount:
-            raise ValidationError("Discount can never be more than the amount")
+            raise ValueError("Discount can never be more than the amount")
         return value
 
 #Category
@@ -618,7 +604,7 @@ class Currency(db.Model, SerializerMixin):
     __tablename__ = "currencies"
 
     id = db.Column(db.Integer(), primary_key=True, unique=True)
-    name = db.Column(Enum(CurrencyEnum), nullable=False, default = CurrencyEnum.KSHS)
+    name = db.Column(SQLEnum(CurrencyEnum), nullable=False, default = CurrencyEnum.KSHS)
     symbol = db.Column(db.String(), nullable=False, unique=True)
     exchange_rate = db.Column(db.Float(), nullable=False, default=0)
 
@@ -634,7 +620,7 @@ class Lpo(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
     lpo_number = db.Column(db.Integer(), nullable=False, unique=True)
-    date_issued = db.Column(db.Date, default=db.current_timestamp())
+    date_issued = db.Column(db.Date, default=db.func.current_date())
     days_until_due = db.Column(db.Integer(), default=30)
     date_due = db.Column(db.Date(), server_default=db.func.date(db.func.current_date(), "+30 days"))
 
@@ -675,7 +661,7 @@ class Lpo(db.Model, SerializerMixin):
         return 3000
 
 # PaymentModeEnum 
-class PaymentModeEnum(Enum):
+class PaymentModeEnum(enum.Enum):
     CASH = "cash"
     MPESA = "mpesa"
     BANK_TRANSFER = "bank_transfer"
@@ -689,7 +675,7 @@ class Payment(db.Model, SerializerMixin):
     __tablename__ = "payments"
 
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
-    payment_mode = db.Column(Enum(PaymentModeEnum), nullable=False)
+    payment_mode = db.Column(SQLEnum(PaymentModeEnum), nullable=False)
     date_paid = db.Column(db.Date(), default= db.func.current_date())
     payment_reference = db.Column(db.String(), nullable=True)
 
@@ -838,7 +824,7 @@ class DeliveryNote(db.Model, SerializerMixin):
 
 
 # Enum class
-class JobCardStatus(Enum):
+class JobCardStatus(enum.Enum):
     COMPLETED= "completed"
     IN_PROGRESS = "in_progress"
     CANCELED = "canceled"
@@ -850,7 +836,7 @@ class JobCard(db.Model, SerializerMixin):
     id = db.Column(db.Integer(), primary_key=True)
     job_card_number = db.Column(db.Integer(), nullable=False, unique=True)
     job_card_date = db.Column(db.Date(), default = db.func.current_date())
-    job_card_status = db.Column(Enum(JobCardStatus), nullable=False, default=JobCardStatus.IN_PROGRESS)
+    job_card_status = db.Column(SQLEnum(JobCardStatus), nullable=False, default=JobCardStatus.IN_PROGRESS)
     description = db.Column(db.String(), nullable=False)
     quanity = db.Column(db.Integer(), nullable=False)
 
