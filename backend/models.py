@@ -842,8 +842,8 @@ class JobCard(db.Model, SerializerMixin):
     quanity = db.Column(db.Integer(), nullable=False)
 
     #Foreign Key
-    admin_id = db.Column(db.Integer(), db.ForeignKey("admin.id"), nullable=False)
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staff.id"), nullable=False)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
 
     #relationship
     invoice = db.relationship("Invoice", secondary=jobcard_invoice, backref="jobcards", lazy=True)
