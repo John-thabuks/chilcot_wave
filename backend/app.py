@@ -15,7 +15,9 @@ class Staff(Resource):
     pass    
 
 
-
+#Invoice
+class Invoice(Resource):
+    pass
 
 
 
@@ -23,6 +25,7 @@ class Staff(Resource):
 
 api.add_resource(Admin, "/admin")
 api.add_resource(Staff, "/staff")
+api.add_resource(Invoice, "/invoice")
 
 
 
