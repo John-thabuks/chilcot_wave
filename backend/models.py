@@ -317,7 +317,7 @@ class Vendor(db.Model, SerializerMixin):
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
         else:
-            raise ValueError("")
+            raise ValueError("Instance must be of type Admin or Staff")
         self.name = name
         self.email = email
         self.phone = phone
