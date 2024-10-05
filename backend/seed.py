@@ -9,6 +9,7 @@ from faker import Faker
 fake = Faker()
 import random
 import string
+from datetime import datetime, timedelta
 
 
 with app.app_context():
@@ -126,6 +127,55 @@ with app.app_context():
     print(f"{len(vender_members)} data inserted successfully!")
 
 
+    #Invoice
+    invoices_created = []
 
+    invoice_number = 700000
 
+    def auto_increment():
+        global invoice_number
+        invoice_number + 1
+        return invoice_number
+    
+    #setting up the start_date and end_date
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=60)
 
+    for _ in range(10):
+
+        #We want a random customer
+        rand_customer = random.choice(customer_members)
+
+        creator = random.choice([admin] + staff_members)
+
+        # Random total amount as a float
+        total_amount = round(random.uniform(1000.0, 500000.0), 2)
+
+        # Random invoice creation date
+        date_created = fake.date_between(start_date=start_date, end_date=end_date)
+
+        # Calculating due date from date_created
+        days_until_due = random.randint(5, 60)
+        due_date = date_created + timedelta(days=days_until_due)
+
+        invoice = Invoice(
+        customer_id = rand_customer.name,
+        invoice_number = auto_increment(),
+        date_created = date_created,
+        days_until_due = days_until_due,
+        due_date = due_date,
+        notes = fake.sentence(),
+        client_lpo_number = generate_kra_pin(),
+        total_amount = total_amount,
+        balance = total_amount,
+        vat_file_name = fake.file_name(),
+        vat_file_path = fake.file_path(),
+        creator= creator
+        )
+
+        invoices_created.append(invoice)
+        db.session.add(invoice)
+
+    db.session.commit()
+    print(f"{len(invoices_created)} invoices created successfully!")
+    
