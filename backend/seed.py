@@ -1,11 +1,14 @@
 from config import app, db
-from models import Users, Admin, Staff, Customer, Vendor, Invoice, Purchase, Item, Category, SerialNumber, Currency, Lpo, Payment, Quotation, DeliveryNote, JobCard, DepartmentEnum, EmploymentStatusEnum
+from models import Users, Admin, Staff, Customer, Vendor, Invoice, Purchase, Item, Category, SerialNumber, Currency, Lpo, Payment, Quotation, DeliveryNote, JobCard, DepartmentEnum, EmploymentStatusEnum, CurrencyEnum
+
+
 from faker import Faker
 
 
 
 fake = Faker()
 import random
+import string
 
 
 with app.app_context():
@@ -60,6 +63,34 @@ with app.app_context():
         db.session.add(staff)
     db.session.commit()
     print(f"{staff_members} data inserted successfully!")
+
+    #Customer
+    customer_members = []
+
+    #Generate kra_pin
+    def generate_kra_pin():
+        return "".join(random.choice(string.ascii_uppercase + string.digits, k=12))
+    
+
+    for _ in range(5):
+
+        #randomly who created customer admin or staff_member
+        creator = random.choices([admin] + customer_members)
+
+        customer = Customer(
+            name= fake.name(),
+            email = fake.email(),
+            phone= ''.join(filter(str.isdigit, fake.phone_number())),
+            kra_pin= generate_kra_pin(),
+            location= fake.address(),
+            country=fake.country(),
+            currency = CurrencyEnum.KSHS,
+            date_enrolled = fake.date_between(start_date='-5y', end_date='-1y'),
+            date_last_updated = fake.date_between(start_date='-1y', end_date='today'),
+            active= True,
+            account_limit= random.randint(100_000, 3_000_000),
+            instance = creator
+        )
 
 
 
