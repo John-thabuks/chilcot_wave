@@ -91,6 +91,12 @@ with app.app_context():
             account_limit= random.randint(100_000, 3_000_000),
             instance = creator
         )
+        customer_members.append(customer)
+        db.session.add(customer)
+
+    db.session.commit()
+    print(f"{staff_members} data inserted successfully!")
+
 
 
 
