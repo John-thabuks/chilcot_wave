@@ -140,7 +140,7 @@ class Staff( Users):
     id = db.Column(db.Integer(),db.ForeignKey('users.id'), primary_key=True, nullable=False)
     date_employed = db.Column(db.Date, nullable=False)
     department = db.Column(SQLEnum(DepartmentEnum), nullable=False, default=DepartmentEnum.SALES)
-    date_exited = db.Column(db.Date(), nullable=True)
+    date_exited = db.Column(db.Date(), nullable=True, default = "On_going")
 
     def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
         super().__init__(**kwargs)
