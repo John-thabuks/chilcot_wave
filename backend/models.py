@@ -98,14 +98,16 @@ class Admin(Users):
             'customer': ['C', 'R', 'U', 'D'],  
             'invoice': ['C', 'R', 'U', 'D'],  
             'purchase': ['C', 'R', 'U', 'D'],  
-            'local_purchase_order': ['C', 'R', 'U', 'D'],  
+            'lpo': ['C', 'R', 'U', 'D'],  
             'item': ['C', 'R', 'U', 'D'],  
             'category': ['C', 'R', 'U', 'D'],  
             'serial_number': ['C', 'R', 'U', 'D'],  
             'quotation': ['C', 'R', 'U', 'D'],  
             'payment': ['C', 'R', 'U', 'D'],  
             'delivery': ['C', 'R', 'U', 'D'],  
-            'currency': ['C', 'R', 'U', 'D']
+            'currency': ['C', 'R', 'U', 'D'],
+            'jobcard': ['C', 'R', 'U', 'D'],
+            'deliverynote': ['C', 'R', 'U', 'D']
             }
 
     #relationship
@@ -119,6 +121,7 @@ class Admin(Users):
     invoices =db.relationship("Invoice", backref="admin", lazy=True)
     vendors = db.relationship("Vendor", backref="admin", lazy=True)
     customers = db.relationship("Customer", backref="admin", lazy=True)
+    staffs= db.relationship("Staff", backref="admin", lazy=True)
 
 class Staff( Users):
 
@@ -151,6 +154,10 @@ class Staff( Users):
         self.date_employed = date_employed
         self.date_exited = date_exited
         self.department = department
+
+    #Foreign Key
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
+    
 
     #relationship
     jobcards = db.relationship("JobCard", backref="staff", lazy=True)
