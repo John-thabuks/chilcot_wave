@@ -157,7 +157,7 @@ class Staff( Users):
 
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
-    
+
 
     #relationship
     jobcards = db.relationship("JobCard", backref="staff", lazy=True)
@@ -320,6 +320,8 @@ class Invoice(db.Model, SerializerMixin):
     due_date = db.Column(db.Date(), nullable=False)
     notes = db.Column(db.String(), nullable=True)
     client_lpo_number = db.Column(db.String(), nullable=False)
+    total_amount = db.Column(db.Float(), nullable=False)
+    balance = db.Column(db.Float(), nullable=False, default=0.0)
     vat_file_name = db.Column(db.String(), nullable=True)
     vat_file_path = db.Column(db.String(), nullable=True)
     
@@ -368,6 +370,8 @@ class Invoice(db.Model, SerializerMixin):
         self.invoice_number = self.generate_invoice_number()
         self.vat_file_name = vat_file_name
         self.vat_file_path = vat_file_path
+        self.total_amount = self.calculate_total_amount()
+        self.balance = self.total_amount
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
@@ -391,6 +395,19 @@ class Invoice(db.Model, SerializerMixin):
             return last_invoice.invoice_number + 1
         return 700000
 
+    # retrieve the total_amount from Item class
+    def calculate_total_amount(self):
+        total = sum(item.total for item in self.items)
+        return total
+    
+    #We need to update the balance when payments are made
+    def update_balance(self, payment_amount):
+        if payment_amount > 0:
+            self.balance -= payment_amount
+        else:
+            raise ValueError("The amount must be more than 0")            
+        if self.balance < 0:
+            self.balance = 0.0
 
 #Purchase 
 class Purchase(db. Model, SerializerMixin):
@@ -688,7 +705,8 @@ class Payment(db.Model, SerializerMixin):
     id = db.Column(db.Integer(), primary_key=True, nullable=False)
     payment_mode = db.Column(SQLEnum(PaymentModeEnum), nullable=False)
     date_paid = db.Column(db.Date(), default= db.func.current_date())
-    payment_reference = db.Column(db.String(), nullable=True)
+    amount = db.Column(db.Float(), nullable=False)
+    payment_reference = db.Column(db.String(), nullable=True)    
 
     #serialize
     serialize_only = ("payment_mode", "date_paid", "payment_reference")
@@ -709,7 +727,7 @@ class Payment(db.Model, SerializerMixin):
     # items = db.relationship("Item", secondary=payment_items, backref="payments", nullable=False, lazy=True)
 
     #Initialization
-    def __init__(self, instance,payment_mode,invoice_id, payment_reference=None):
+    def __init__(self, instance,payment_mode,invoice_id, amount, payment_reference=None):
         
         """
         Initialize Payment: It expects either Admin or Staff instance for 'instance'
@@ -735,6 +753,9 @@ class Payment(db.Model, SerializerMixin):
             self.payment_mode = payment_mode
 
         self.payment_reference = payment_reference
+        self.amount = amount
+
+
 
 # Quotation
 class Quotation(db.Model, SerializerMixin):
