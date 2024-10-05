@@ -123,6 +123,13 @@ class Admin(Users):
     customers = db.relationship("Customer", backref="admin", lazy=True)
     staffs= db.relationship("Staff", backref="admin", lazy=True)
 
+#Departments
+class DepartmentEnum(enum.Enum):
+    SALES = "sales"
+    ACCOUNTS = "accounts"
+    TECHNICAL = "technical"
+    LOGISTICS = "logistics"
+
 class Staff( Users):
 
     __tablename__ = "staffs"
@@ -132,7 +139,7 @@ class Staff( Users):
     }
     id = db.Column(db.Integer(),db.ForeignKey('users.id'), primary_key=True, nullable=False)
     date_employed = db.Column(db.Date, nullable=False)
-    department = db.Column(db.String(), nullable=False)
+    department = db.Column(SQLEnum(DepartmentEnum), nullable=False, default=DepartmentEnum.SALES)
     date_exited = db.Column(db.Date(), nullable=True)
 
     def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
