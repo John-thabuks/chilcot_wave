@@ -148,6 +148,10 @@ class Staff( Users):
     employment_status = db.Column(SQLEnum(EmploymentStatusEnum), nullable=False, default=EmploymentStatusEnum.ONGOING)
     date_exited = db.Column(db.Date(), nullable=True)
 
+    #Serialize the Staff: It automatically inherit the SerializeMixin form Users
+    serialize_only = ('id', 'first_name', 'last_name', 'username', 'email', 'permissions', 'date_employed', 'department', 'employment_status')
+
+
     def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
         super().__init__(**kwargs)
         self.permissions = {
