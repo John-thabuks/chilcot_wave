@@ -69,7 +69,7 @@ with app.app_context():
 
     #Generate kra_pin
     def generate_kra_pin():
-        return "".join(random.choiceS(string.ascii_uppercase + string.digits, k=12))
+        return "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
     
 
     for _ in range(5):
@@ -95,7 +95,35 @@ with app.app_context():
         db.session.add(customer)
 
     db.session.commit()
-    print(f"{staff_members} data inserted successfully!")
+    print(f"{len(staff_members)} data inserted successfully!")
+
+
+    # Vendor: created by either admin or staff_members. We need 5 venodrs
+    vender_members = []
+
+
+    for _ in range(5):
+
+        #Random creator:
+        creator = random.choice([admin] + staff_members)
+
+        vendor = Vendor(
+            name = fake.name(),
+            email= fake.email(),
+            phone= "".join(filter(str.isdigit, fake.phone_number())),
+            kra_pin= generate_kra_pin(),
+            location=fake.address(),
+            country=fake.country(),
+            currency=CurrencyEnum.KSHS,
+            date_registered= fake.date_between(start_date="-4y", end_date="-1y"),
+            active=True, 
+            instance = creator
+        )
+        vender_members.append(vendor)
+        db.session.add(vendor)
+
+    db.session.commit()
+    print(f"{len(vender_members)} data inserted successfully!")
 
 
 
