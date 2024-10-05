@@ -310,7 +310,14 @@ class Vendor(db.Model, SerializerMixin):
     serialize_only = ("name", "email", "phone", "kra_pin")
 
     #initialize
-    def __init__(self, name, email, phone, kra_pin, location, country, currency=CurrencyEnum.KSHS) -> None:
+    def __init__(self, name, email, phone, kra_pin, location, country, instance, currency=CurrencyEnum.KSHS) -> None:
+        #Who onboarded the vendor:
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+        elif isinstance(instance, Staff):
+            self.staff_id = instance.id
+        else:
+            raise ValueError("")
         self.name = name
         self.email = email
         self.phone = phone
