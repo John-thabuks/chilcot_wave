@@ -69,13 +69,13 @@ with app.app_context():
 
     #Generate kra_pin
     def generate_kra_pin():
-        return "".join(random.choice(string.ascii_uppercase + string.digits, k=12))
+        return "".join(random.choiceS(string.ascii_uppercase + string.digits, k=12))
     
 
     for _ in range(5):
 
         #randomly who created customer admin or staff_member
-        creator = random.choices([admin] + customer_members)
+        creator = random.choice([admin] + customer_members)
 
         customer = Customer(
             name= fake.name(),
