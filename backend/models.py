@@ -391,7 +391,7 @@ class Invoice(db.Model, SerializerMixin):
         if days_until_due is not None:
             self.days_until_due = days_until_due
             self.due_date = db.func.date(self.date_created, f"+{self.days_until_due} days")
-        self.invoice_number = self.generate_invoice_number()
+        self.invoice_number = Invoice.generate_invoice_number()
         self.vat_file_name = vat_file_name
         self.vat_file_path = vat_file_path
         self.total_amount = self.calculate_total_amount()
@@ -408,12 +408,14 @@ class Invoice(db.Model, SerializerMixin):
     #serialize 
     serialize_only = ("invoice_number", "date_created", "days_until_due", "due_date")
 
-    def generate_invoice_number(self):
+    #Because this is tied to a class not a single instance
+    @classmethod
+    def generate_invoice_number(cls):
         """
         Purpose: function that will auto increment the invoice_number
         """
 
-        last_invoice = Invoice.query.order_by(Invoice.id.desc()).first()
+        last_invoice = Invoice.query.order_by(cls.id.desc()).first()
 
         if last_invoice:
             return last_invoice.invoice_number + 1
@@ -545,7 +547,9 @@ class Item(db.Model, SerializerMixin):
         return self.quantity * self.price
 
     #update VAT if changed after initialization
-    def update_vat_percentage(self, new_vat_percentage):
+    def update_vat_percentage(self, new_vat_percentage:VatEnum):
+        if not isinstance(new_vat_percentage, VatEnum):
+            raise ValueError("new_vat_percentage must be an instance of VatEnum")
         self.vat_percentage = new_vat_percentage
         self.vat =self.calculate_vat(new_vat_percentage)
         self.total = self.calculate_total()
