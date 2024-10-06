@@ -469,11 +469,12 @@ class Purchase(db. Model, SerializerMixin):
         self.date_due = date_due
         self.delivered_by = delivered_by
         self.delivery_date = delivery_date
-        self.invoice_number = self.increment_purchase_number()
+        self.purchase_number = Purchase.increment_purchase_number()
     
     
     # Increment Purchase number
-    def increment_purchase_number(self):
+    @classmethod
+    def increment_purchase_number(cls):
         new_purchase = Purchase.query.order_by(Purchase.purchase_number.desc()).first()
         if new_purchase:
             return new_purchase.purchase_number + 1
@@ -667,7 +668,7 @@ class Currency(db.Model, SerializerMixin):
     #serialize
     serialize_only =("name", "symbol", "exchange_rate")
 
-    #Foreignkey
+    #Relationship
     items = db.relationship("Currency", backref="currency", lazy=True)
 
 #LPO
