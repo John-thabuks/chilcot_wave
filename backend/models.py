@@ -701,7 +701,7 @@ class Lpo(db.Model, SerializerMixin):
             self.staff_id = instance.id
 
         #Lpo number set
-        self.lpo_number = self.lpo_number_increment()            
+        self.lpo_number = Lpo.lpo_number_increment()            
         
         #Handling due date logic
         self.days_until_due=days_until_due if days_until_due else 30
@@ -711,8 +711,9 @@ class Lpo(db.Model, SerializerMixin):
         
 
     #Function to auto increment LPO number
-    def lpo_number_increment(self):
-        last_lpo_number = Lpo.query.order_by(Lpo.lpo_number.desc()).first()
+    @classmethod
+    def lpo_number_increment(cls):
+        last_lpo_number = Lpo.query.order_by(cls.lpo_number.desc()).first()
         if last_lpo_number:
             return last_lpo_number.lpo_number + 1
         return 3000
