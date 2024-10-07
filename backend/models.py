@@ -435,6 +435,14 @@ class Invoice(db.Model, SerializerMixin):
         if self.balance < 0:
             self.balance = 0.0
 
+
+    # Call this after adding items or when creating the invoice
+    def update_total_amount(self):
+        self.total_amount = self.calculate_total_amount()
+        self.balance = self.total_amount
+
+
+
 #Purchase 
 class Purchase(db. Model, SerializerMixin):
 
@@ -487,7 +495,16 @@ class Purchase(db. Model, SerializerMixin):
     invoices = db.relationship("Invoice", secondary=purchase_invoice, backref="purchase", lazy=True)
     payments = db.relationship("Payment", backref="purchase", lazy=True)
     
+    def calculate_total_amount(self):
+        """Calculates the total for all items in this purchase."""
+        total = sum(item.total for item in self.items)
+        return total
     
+    # Call this after adding items or during purchase initialization
+    def update_total_amount(self):
+        self.total_amount = self.calculate_total_amount()
+
+
 
 #Vat Enum
 class VatEnum(enum.Enum):
@@ -757,7 +774,7 @@ class Payment(db.Model, SerializerMixin):
     # items = db.relationship("Item", secondary=payment_items, backref="payments", nullable=False, lazy=True)
 
     #Initialization
-    def __init__(self, instance,payment_mode,invoice_id, amount, payment_reference=None):
+    def __init__(self, instance,payment_mode, amount, invoice_id=None, purchase_id = None, payment_reference=None):
         
         """
         Initialize Payment: It expects either Admin or Staff instance for 'instance'
@@ -767,7 +784,14 @@ class Payment(db.Model, SerializerMixin):
         :param payment_mode: Mode of payment from PaymentModeEnum
         :param payment_reference: Optional reference for the payment (e.g., bank transaction number)
         """
-        self.invoice_id = invoice_id
+        if invoice_id:
+            self.invoice_id = invoice_id
+
+        elif purchase_id:
+            self.purchase_id = purchase_id
+
+        else:
+            raise ValueError("Payment must be linked to either an invoice or a purchase.")    
 
         if isinstance(instance, Admin):
             self.admin_id = instance.id
