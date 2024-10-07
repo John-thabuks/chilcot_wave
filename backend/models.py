@@ -520,7 +520,7 @@ class Item(db.Model, SerializerMixin):
     currency_id = db.Column(db.Integer(), db.ForeignKey("currencies.id"), nullable=False)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=False)
     lpo_id = db.Column(db.Integer(),db.ForeignKey("lpos.id"))
-    quotation =db.Column(db.Integer(), db.ForeignKey("quotations.id"), nullable=False)
+    quotation_id =db.Column(db.Integer(), db.ForeignKey("quotations.id"), nullable=False)
 
 
 
