@@ -832,12 +832,13 @@ class Quotation(db.Model, SerializerMixin):
             self.quotation_days = quotation_days
             self.quotation_due = db.func.date(self.quotation_date, f"+{self.quotation_days} days")
 
-        self.quotation_increment = self.quotation_increment()
+        self.quotation_number = Quotation.quotation_increment()
 
 
     #quotation auto-increment
-    def quotation_increment(self):
-        last_quotation_number = Quotation.query.order_by(Quotation.quotation_number.desc()).first()
+    @classmethod
+    def quotation_increment(cls):
+        last_quotation_number = Quotation.query.order_by(cls.quotation_number.desc()).first()
         if last_quotation_number:
             return last_quotation_number.quotation_number + 1
 
