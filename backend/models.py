@@ -17,6 +17,8 @@ import re
 import enum
 from sqlalchemy import Enum as SQLEnum
 
+import json
+
 
 #Association table: Purchase and Invoice
 purchase_invoice = db.Table("purchase_invoice",
@@ -50,6 +52,8 @@ class Users(db.Model, SerializerMixin):
     permissions = db.Column(db.Text)    #Rights stored in JSON format
 
 
+
+
     EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
 
     @validates('email', "username")
@@ -78,50 +82,23 @@ class Users(db.Model, SerializerMixin):
     def authenticate_password(self, user_password):
         return bcrypt.check_password_hash(self._password_hash, user_password.encode("utf-8"))
     
+
+    @hybrid_property
+    def permissions_dict(self):
+        """Returns the permissions as a dictionary"""
+        return json.loads(self.permissions or '{}')
+
+    @permissions_dict.setter
+    def permissions_dict(self, value):
+        """Converts the permissions dictionary to a JSON string before storing"""
+        self.permissions = json.dumps(value)
+    
+
     def __repr__(self):
         return f"<Users {self.first_name} {self.last_name} {self.type}>"
     
 
-class Admin(Users):
 
-    __tablename__ = "admins"
-    
-    __mapper_args__ = {
-        "polymorphic_identity": "Admin"
-    }
-
-    id = db.Column(db.Integer(), db.ForeignKey('users.id'),primary_key=True, nullable=False)
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.permissions = {
-            'vendor': ['C', 'R', 'U', 'D'],   # Admin can Create, Read, Update, Delete vendors
-            'customer': ['C', 'R', 'U', 'D'],  
-            'invoice': ['C', 'R', 'U', 'D'],  
-            'purchase': ['C', 'R', 'U', 'D'],  
-            'lpo': ['C', 'R', 'U', 'D'],  
-            'item': ['C', 'R', 'U', 'D'],  
-            'category': ['C', 'R', 'U', 'D'],  
-            'serial_number': ['C', 'R', 'U', 'D'],  
-            'quotation': ['C', 'R', 'U', 'D'],  
-            'payment': ['C', 'R', 'U', 'D'],  
-            'delivery': ['C', 'R', 'U', 'D'],  
-            'currency': ['C', 'R', 'U', 'D'],
-            'jobcard': ['C', 'R', 'U', 'D'],
-            'deliverynote': ['C', 'R', 'U', 'D']
-            }
-
-    #relationship
-    jobcards = db.relationship("JobCard", backref="admin", lazy=True)
-    deliverynotes = db.relationship("DeliveryNote", backref="admin", lazy=True)
-    quotations = db.relationship("Quotation", backref="admin", lazy=True)
-    payments= db.relationship("Payment", backref="admin", lazy=True)
-    lpos = db.relationship("Lpo", backref="admin", lazy=True)
-    categories= db.relationship("Category", backref="admin", lazy=True)
-    purchases = db.relationship("Purchase", backref="admin", lazy=True)
-    invoices =db.relationship("Invoice", backref="admin", lazy=True)
-    vendors = db.relationship("Vendor", backref="admin", lazy=True)
-    customers = db.relationship("Customer", backref="admin", lazy=True)
-    staffs= db.relationship("Staff", backref="admin", lazy=True)
 
 #Departments
 class DepartmentEnum(enum.Enum):
@@ -154,7 +131,7 @@ class Staff( Users):
 
     def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
         super().__init__(**kwargs)
-        self.permissions = {
+        self.permissions_dict = {
             'vendor': ['C', 'R', 'U'],   # Staff can only Create, Read, Update vendors (no delete)
             'customer': ['C', 'R', 'U'],
             'invoice': ['C', 'R', 'U'],
@@ -188,6 +165,49 @@ class Staff( Users):
     vendors = db.relationship("Vendor", backref="staff", lazy=True)
     customers = db.relationship("Customer", backref="staff", lazy=True)
 
+
+class Admin(Users):
+
+    __tablename__ = "admins"
+    
+    __mapper_args__ = {
+        "polymorphic_identity": "Admin"
+    }
+
+    id = db.Column(db.Integer(), db.ForeignKey('users.id'),primary_key=True, nullable=False)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.permissions_dict = {
+            'vendor': ['C', 'R', 'U', 'D'],   # Admin can Create, Read, Update, Delete vendors
+            'customer': ['C', 'R', 'U', 'D'],  
+            'invoice': ['C', 'R', 'U', 'D'],  
+            'purchase': ['C', 'R', 'U', 'D'],  
+            'lpo': ['C', 'R', 'U', 'D'],  
+            'item': ['C', 'R', 'U', 'D'],  
+            'category': ['C', 'R', 'U', 'D'],  
+            'serial_number': ['C', 'R', 'U', 'D'],  
+            'quotation': ['C', 'R', 'U', 'D'],  
+            'payment': ['C', 'R', 'U', 'D'],  
+            'delivery': ['C', 'R', 'U', 'D'],  
+            'currency': ['C', 'R', 'U', 'D'],
+            'jobcard': ['C', 'R', 'U', 'D'],
+            'deliverynote': ['C', 'R', 'U', 'D']
+            }
+
+    #relationship
+    jobcards = db.relationship("JobCard", backref="admin", lazy=True)
+    deliverynotes = db.relationship("DeliveryNote", backref="admin", lazy=True)
+    quotations = db.relationship("Quotation", backref="admin", lazy=True)
+    payments= db.relationship("Payment", backref="admin", lazy=True)
+    lpos = db.relationship("Lpo", backref="admin", lazy=True)
+    categories= db.relationship("Category", backref="admin", lazy=True)
+    purchases = db.relationship("Purchase", backref="admin", lazy=True)
+    invoices =db.relationship("Invoice", backref="admin", lazy=True)
+    vendors = db.relationship("Vendor", backref="admin", lazy=True)
+    customers = db.relationship("Customer", backref="admin", lazy=True)
+    staffs= db.relationship("Staff", backref="admin", lazy=True, foreign_keys=[Staff.admin_id])
+
+
 # Currency Enum
 class CurrencyEnum(enum.Enum):
     KSHS = "Kshs"
@@ -216,22 +236,28 @@ class Customer(db.Model, SerializerMixin):
 
 
     #foreignKey
-    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)  #Admin
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)  #staff
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=True)  #Admin
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)  #staff
 
     #initialize
-    def __init__(self,name, email, phone, kra_pin, location, country, account_limit, instance):
+    def __init__(self, name, email, phone, kra_pin, location, country, date_enrolled, date_last_updated, active, account_limit, instance):
         if isinstance(instance, Admin):
             self.admin_id = instance.id
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
+        else:
+            raise ValueError("Must be Admin of Staff")
         self.name = name
         self.email = email
         self.phone = phone
         self.kra_pin = kra_pin
         self.location = location
         self.country = country
+        self.date_enrolled = date_enrolled    # Ensure this is included
+        self.date_last_updated = date_last_updated
+        self.active = active
         self.account_limit = account_limit
+        
         
     #Account limit change: Upward or Downward
     def update_account_limit(self, new_account_limit, instance):
@@ -302,8 +328,8 @@ class Vendor(db.Model, SerializerMixin):
         return value
     
     #foreign key
-    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=True)
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)
 
 
     #serialize
@@ -359,7 +385,7 @@ class Invoice(db.Model, SerializerMixin):
 
 
     #Relationship    
-    purchases = db.relationship("Purchase", secondary=purchase_invoice, backref="invoices", lazy=True)
+    purchases = db.relationship("Purchase", secondary=purchase_invoice, backref="invoice", lazy=True)
     jobcard = db.relationship   ("JobCard", secondary=jobcard_invoice, backref="invoices", lazy=True)
     deliverynotes = db.relationship("DeliveryNote", backref="invoice", lazy=True)
     payments = db.relationship("Payment", backref="invoice", lazy=True)
@@ -369,7 +395,7 @@ class Invoice(db.Model, SerializerMixin):
 
 
 
-    def __init__(self, creator,vat_file_name=None, vat_file_path=None, days_until_due=None) -> None:
+    def __init__(self, creator,customer=None, vat_file_name=None, vat_file_path=None, days_until_due=None) -> None:
 
         """
         Initialize an Invoice: It expects either Admin or Staff instance for 'creator'
@@ -396,6 +422,7 @@ class Invoice(db.Model, SerializerMixin):
         self.vat_file_path = vat_file_path
         self.total_amount = self.calculate_total_amount()
         self.balance = self.total_amount
+        self.customer_id = customer.id
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
@@ -646,7 +673,7 @@ class Category(db.Model, SerializerMixin):
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
 
     #Relationship
-    items = db.relationship("Category", backref="category", lazy=True)
+    items = db.relationship("Item", backref="category", lazy=True)
 
     #initialize
     def __init__(self, instance):
@@ -686,7 +713,7 @@ class Currency(db.Model, SerializerMixin):
     serialize_only =("name", "symbol", "exchange_rate")
 
     #Relationship
-    items = db.relationship("Currency", backref="currency", lazy=True)
+    items = db.relationship("Item", backref="currency", lazy=True)
 
 #LPO
 class Lpo(db.Model, SerializerMixin):
@@ -708,7 +735,7 @@ class Lpo(db.Model, SerializerMixin):
 
 
     #Relationship
-    items = db.relationship("Lpo", backref="lpo", lazy=True)
+    items = db.relationship("Item", backref="lpo", lazy=True)
 
     #Initialization
     def __init__(self,instance, days_until_due=None):
@@ -777,13 +804,15 @@ class Payment(db.Model, SerializerMixin):
     def __init__(self, instance,payment_mode, amount, invoice_id=None, purchase_id = None, payment_reference=None):
         
         """
-        Initialize Payment: It expects either Admin or Staff instance for 'instance'
-
-        :param instance: Either an Admin or Staff instance made the payment
-        :param invoice_id: Ensure that each payment is for a unique invoice
-        :param payment_mode: Mode of payment from PaymentModeEnum
-        :param payment_reference: Optional reference for the payment (e.g., bank transaction number)
-        """
+    Initialize Payment: It expects either Admin or Staff instance for 'instance'
+    
+    :param instance: Either an Admin or Staff instance made the payment
+    :param payment_mode: Mode of payment (cash, mpesa, etc.)
+    :param amount: Amount paid
+    :param invoice_id: Optional invoice linked to the payment
+    :param purchase_id: Optional purchase linked to the payment
+    :param payment_reference: Optional payment reference number (like a transaction ID)
+    """
         if invoice_id:
             self.invoice_id = invoice_id
 
@@ -830,7 +859,7 @@ class Quotation(db.Model, SerializerMixin):
     
 
     #Relationship
-    items = db.relationship("Item", backref="quotations", lazy=True)
+    items = db.relationship("Item", backref="quotation", lazy=True)
 
 
     #initialization
@@ -901,14 +930,15 @@ class DeliveryNote(db.Model, SerializerMixin):
         else:
             raise ValueError("Can only be create by an Admin or Staff")
         
-        self.delivery_number = self.increment_delivery_number()
+        self.delivery_number = DeliveryNote.increment_delivery_number()
         self.delivery_file_name = delivery_file_name
         self.delivery_file_path = delivery_file_path
         
 
     # To auto increment delivery_number
-    def increment_delivery_number(self):
-        last_delivery_number = DeliveryNote.query.order_by(DeliveryNote.delivery_number.desc()).first()
+    @classmethod
+    def increment_delivery_number(cls):
+        last_delivery_number = DeliveryNote.query.order_by(cls.delivery_number.desc()).first()
         if last_delivery_number:
             return last_delivery_number.delivery_number + 1
         return 700000
@@ -949,12 +979,13 @@ class JobCard(db.Model, SerializerMixin):
             self.admin_id = instance.id
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
-        self.job_card_number = self.auto_increment_job_card_number()
+        self.job_card_number = JobCard.auto_increment_job_card_number()
 
 
     #Auto-increment job_car_number
-    def auto_increment_job_card_number(self):
-        last_job_card_number = JobCard.query.order_by(JobCard.job_card_number.desc()).first()
+    @classmethod
+    def auto_increment_job_card_number(cls):
+        last_job_card_number = JobCard.query.order_by(cls.job_card_number.desc()).first()
         if last_job_card_number:
             return last_job_card_number.job_card_number + 1
         else:
