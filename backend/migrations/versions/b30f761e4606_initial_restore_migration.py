@@ -1,8 +1,8 @@
-"""Initial migration
+"""Initial-restore migration
 
-Revision ID: ca4bf87bb69b
+Revision ID: b30f761e4606
 Revises: 
-Create Date: 2024-10-02 09:00:42.534789
+Create Date: 2024-10-08 08:50:19.423003
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'ca4bf87bb69b'
+revision = 'b30f761e4606'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -56,8 +56,11 @@ def upgrade():
     op.create_table('staffs',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date_employed', sa.Date(), nullable=False),
-    sa.Column('department', sa.String(), nullable=False),
+    sa.Column('department', sa.Enum('SALES', 'ACCOUNTS', 'TECHNICAL', 'LOGISTICS', name='departmentenum'), nullable=False),
+    sa.Column('employment_status', sa.Enum('ONGOING', 'TERMINATED', name='employmentstatusenum'), nullable=False),
     sa.Column('date_exited', sa.Date(), nullable=True),
+    sa.Column('admin_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
     sa.ForeignKeyConstraint(['id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -154,7 +157,10 @@ def upgrade():
     sa.Column('due_date', sa.Date(), nullable=False),
     sa.Column('notes', sa.String(), nullable=True),
     sa.Column('client_lpo_number', sa.String(), nullable=False),
-    sa.Column('vat_file', sa.String(), nullable=True),
+    sa.Column('total_amount', sa.Float(), nullable=False),
+    sa.Column('balance', sa.Float(), nullable=False),
+    sa.Column('vat_file_name', sa.String(), nullable=True),
+    sa.Column('vat_file_path', sa.String(), nullable=True),
     sa.Column('admin_id', sa.Integer(), nullable=False),
     sa.Column('staff_id', sa.Integer(), nullable=False),
     sa.Column('customer_id', sa.Integer(), nullable=False),
@@ -185,6 +191,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('delivery_number', sa.Integer(), nullable=False),
     sa.Column('delivery_date', sa.Date(), nullable=False),
+    sa.Column('delivery_file_name', sa.String(), nullable=True),
+    sa.Column('delivery_file_path', sa.String(), nullable=True),
     sa.Column('invoice_id', sa.Integer(), nullable=False),
     sa.Column('admin_id', sa.Integer(), nullable=False),
     sa.Column('staff_id', sa.Integer(), nullable=False),
@@ -235,13 +243,13 @@ def upgrade():
     sa.Column('currency_id', sa.Integer(), nullable=False),
     sa.Column('purchase_id', sa.Integer(), nullable=False),
     sa.Column('lpo_id', sa.Integer(), nullable=True),
-    sa.Column('quotation', sa.Integer(), nullable=False),
+    sa.Column('quotation_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
     sa.ForeignKeyConstraint(['currency_id'], ['currencies.id'], ),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoices.id'], ),
     sa.ForeignKeyConstraint(['lpo_id'], ['lpos.id'], ),
     sa.ForeignKeyConstraint(['purchase_id'], ['purchases.id'], ),
-    sa.ForeignKeyConstraint(['quotation'], ['quotations.id'], ),
+    sa.ForeignKeyConstraint(['quotation_id'], ['quotations.id'], ),
     sa.ForeignKeyConstraint(['serial_number_id'], ['serial_numbers.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('serial_number_id')
@@ -250,6 +258,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('payment_mode', sa.Enum('CASH', 'MPESA', 'BANK_TRANSFER', 'CHEQUE', 'BANK_DEPOSIT', 'OTHERS', name='paymentmodeenum'), nullable=False),
     sa.Column('date_paid', sa.Date(), nullable=True),
+    sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('payment_reference', sa.String(), nullable=True),
     sa.Column('invoice_id', sa.Integer(), nullable=False),
     sa.Column('purchase_id', sa.Integer(), nullable=True),
