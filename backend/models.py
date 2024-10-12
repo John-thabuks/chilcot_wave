@@ -759,7 +759,7 @@ class Lpo(db.Model, SerializerMixin):
     items = db.relationship("Item", backref="lpo", lazy=True)
 
     #Initialization
-    def __init__(self,instance, vendor_id, days_until_due=None):
+    def __init__(self,instance, vendor_id, date_due=None,days_until_due=None):
         if isinstance(instance, Admin):
             self.admin_id = instance.id
             self.staff_id = 0
@@ -775,7 +775,10 @@ class Lpo(db.Model, SerializerMixin):
         
         #Handling due date logic
         self.days_until_due=days_until_due if days_until_due else 30
-        if days_until_due:                        
+        self.date_issued = db.func.current_date()
+        if date_due:
+            self.date_due = date_due
+        else:
             self.date_due = db.func.date(self.date_issued, f"+{self.days_until_due} days")
             
         
@@ -813,21 +816,29 @@ class Payment(db.Model, SerializerMixin):
 
 
     #Foreign Key
-    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=False)
+    invoice_id = db.Column(db.Integer(), db.ForeignKey("invoices.id"), nullable=True)
     purchase_id = db.Column(db.Integer(), db.ForeignKey("purchases.id"), nullable=True)
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
-    vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=False)
-    customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=False)
+    vendor_id = db.Column(db.Integer(), db.ForeignKey("vendors.id"), nullable=True)
+    customer_id = db.Column(db.Integer(), db.ForeignKey("customers.id"), nullable=True)
 
 
+    # Validation to ensure either invoice or purchase is provided
+    @validates('invoice_id', 'purchase_id')
+    def validate_invoice_or_purchase(self, key, value):
+        if key == 'invoice_id' and not value and not self.purchase_id:
+            raise ValueError("Payment must be linked to either an invoice or a purchase.")
+        if key == 'purchase_id' and not value and not self.invoice_id:
+            raise ValueError("Payment must be linked to either an invoice or a purchase.")
+        return value
 
 
     #Relationship
     # items = db.relationship("Item", secondary=payment_items, backref="payments", nullable=False, lazy=True)
 
     #Initialization
-    def __init__(self, instance,payment_mode, amount, vendor_id, customer_id, invoice_id=None, purchase_id = None, payment_reference=None):
+    def __init__(self, instance,payment_mode, amount, customer_id=None, vendor_id= None, invoice_id=None, purchase_id = None, payment_reference=None):
         
         """
     Initialize Payment: It expects either Admin or Staff instance for 'instance'
@@ -839,15 +850,13 @@ class Payment(db.Model, SerializerMixin):
     :param purchase_id: Optional purchase linked to the payment
     :param payment_reference: Optional payment reference number (like a transaction ID)
     """
+        if not invoice_id and not purchase_id:
+            raise ValueError("Payment must be linked to either an invoice or a purchase.") 
+
         if invoice_id:
             self.invoice_id = invoice_id   
-
         elif purchase_id:
-            self.purchase_id = purchase_id
-            
-
-        else:
-            raise ValueError("Payment must be linked to either an invoice or a purchase.")    
+            self.purchase_id = purchase_id   
 
 
         if isinstance(instance, Admin):
@@ -959,8 +968,10 @@ class DeliveryNote(db.Model, SerializerMixin):
 
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
         elif isinstance(instance, Staff)            :
             self.staff_id = instance.id
+            self.admin_id = 0
         else:
             raise ValueError("Can only be create by an Admin or Staff")
         
@@ -993,7 +1004,7 @@ class JobCard(db.Model, SerializerMixin):
     job_card_date = db.Column(db.Date(), default = db.func.current_date())
     job_card_status = db.Column(SQLEnum(JobCardStatus), nullable=False, default=JobCardStatus.IN_PROGRESS)
     description = db.Column(db.String(), nullable=False)
-    quanity = db.Column(db.Integer(), nullable=False)
+    quantity = db.Column(db.Integer(), nullable=False)
 
     #Foreign Key
     admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=False)
@@ -1004,16 +1015,21 @@ class JobCard(db.Model, SerializerMixin):
     
 
     #Initialization
-    def __init__(self, instance, invoice_id=None):
+    def __init__(self, instance, job_card_status,description, quantity,invoice_id=None):
         if invoice_id is not None:
             invoice = Invoice.query.get(invoice_id)
             if invoice:
                 self.invoice.append(invoice)
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
+            self.admin_id = 0
         self.job_card_number = JobCard.auto_increment_job_card_number()
+        self.job_card_status = job_card_status
+        self.description = description
+        self.quantity = quantity
 
 
     #Auto-increment job_car_number
