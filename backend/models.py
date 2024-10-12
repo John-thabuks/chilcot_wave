@@ -19,6 +19,8 @@ from sqlalchemy import Enum as SQLEnum
 
 import json
 
+from datetime import timedelta, datetime
+
 
 #Association table: Purchase and Invoice
 purchase_invoice = db.Table("purchase_invoice",
@@ -395,7 +397,7 @@ class Invoice(db.Model, SerializerMixin):
 
 
 
-    def __init__(self, creator,customer=None, vat_file_name=None, vat_file_path=None, days_until_due=None) -> None:
+    def __init__(self, creator,customer_id,vat_file_name=None, vat_file_path=None, days_until_due=None, notes=None, client_lpo_number=None):
 
         """
         Initialize an Invoice: It expects either Admin or Staff instance for 'creator'
@@ -404,25 +406,32 @@ class Invoice(db.Model, SerializerMixin):
 
         :param days_until_due: optional, customize the number of days until the invoice is due. 
         """
+        # # Query to determine if the creator is an Admin or Staff
+        # creator = Admin.query.get(creator_id) or Staff.query.get(creator_id)
 
         if isinstance(creator, Admin):
             self.admin_id = creator.id
+            self.staff_id = 0
 
         elif isinstance(creator, Staff):
             self.staff_id = creator.id
+            self.admin_id=0
 
         else:
             raise ValueError("Creator must be an Admin or Staff")
 
         if days_until_due is not None:
             self.days_until_due = days_until_due
-            self.due_date = db.func.date(self.date_created, f"+{self.days_until_due} days")
+        self.date_created = datetime.today().date()
+        self.due_date = self.date_created + timedelta(days=self.days_until_due)
         self.invoice_number = Invoice.generate_invoice_number()
         self.vat_file_name = vat_file_name
         self.vat_file_path = vat_file_path
         self.total_amount = self.calculate_total_amount()
         self.balance = self.total_amount
-        self.customer_id = customer.id
+        self.customer_id = customer_id
+        self.notes =notes
+        self.client_lpo_number = client_lpo_number
     
     
     #Apply table constraint to the column that fills if its either Admin or Staff who created a specific Invoice
@@ -494,17 +503,22 @@ class Purchase(db. Model, SerializerMixin):
     staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=False)
 
     #Initialization
-    def __init__(self, date_purchased, date_due, delivered_by, delivery_date, instance):
+    def __init__(self, date_purchased, date_due, delivered_by, delivery_date, instance, invoice_number, vendor_id, lpo_id):
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
         elif isinstance(instance,Staff):
             self.staff_id = instance.id
+            self.admin_id = 0
 
         self.date_purchased = date_purchased
         self.date_due = date_due
         self.delivered_by = delivered_by
         self.delivery_date = delivery_date
         self.purchase_number = Purchase.increment_purchase_number()
+        self.invoice_number = invoice_number
+        self.vendor_id = vendor_id
+        self.lpo_id = lpo_id
     
     
     # Increment Purchase number
@@ -573,7 +587,7 @@ class Item(db.Model, SerializerMixin):
 
 
     #for different instances
-    def __init__(self, category_id, description, serial_number_id, quantity, price, currency_id, discount=None, vat_percentage=VatEnum.VAT_16):
+    def __init__(self, category_id, description, serial_number_id, quantity, price, currency_id,invoice_id, quotation_id, purchase_id, lpo_id, discount=None, vat_percentage=VatEnum.VAT_16):
 
         self.vat_percentage= vat_percentage
         self.category_id = category_id
@@ -586,6 +600,10 @@ class Item(db.Model, SerializerMixin):
         self.total = self.calculate_total()
         self.currency_id = currency_id 
         self.discount = self.calculate_discount(discount) if discount else 0
+        self.invoice_id = invoice_id
+        self.quotation_id = quotation_id
+        self.purchase_id = purchase_id
+        self.lpo_id = lpo_id
         
     #calculate Amount
     def calculate_amount(self):
@@ -606,7 +624,7 @@ class Item(db.Model, SerializerMixin):
     
     #calculate the total amount
     def calculate_total(self):
-        return self.amount + (self.vat or 0) - self.discount 
+        return self.amount + (self.vat or 0.0) - (self.discount or 0.0) 
     
     #Doscount calulation
     def calculate_discount(self, discount):
@@ -676,13 +694,16 @@ class Category(db.Model, SerializerMixin):
     items = db.relationship("Item", backref="category", lazy=True)
 
     #initialize
-    def __init__(self, instance):
+    def __init__(self, instance, name):
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
+            self.admin_id = 0
         else:
-            raise ValueError("Only Admin or Staff allowed to create a category")            
+            raise ValueError("Only Admin or Staff allowed to create a category")       
+        self.name = name     
 
 
 
@@ -738,19 +759,24 @@ class Lpo(db.Model, SerializerMixin):
     items = db.relationship("Item", backref="lpo", lazy=True)
 
     #Initialization
-    def __init__(self,instance, days_until_due=None):
+    def __init__(self,instance, vendor_id, days_until_due=None):
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
+            self.admin_id = 0
+        else:
+            raise ValueError("Must be an Admin or Staff")
 
         #Lpo number set
-        self.lpo_number = Lpo.lpo_number_increment()            
+        self.lpo_number = Lpo.lpo_number_increment()  
+        self.vendor_id = vendor_id      
         
         #Handling due date logic
         self.days_until_due=days_until_due if days_until_due else 30
         if days_until_due:                        
-            self.date_due = db.func.day(self.date_issued, f"+{self.days_until_due} days")
+            self.date_due = db.func.date(self.date_issued, f"+{self.days_until_due} days")
             
         
 
@@ -801,7 +827,7 @@ class Payment(db.Model, SerializerMixin):
     # items = db.relationship("Item", secondary=payment_items, backref="payments", nullable=False, lazy=True)
 
     #Initialization
-    def __init__(self, instance,payment_mode, amount, invoice_id=None, purchase_id = None, payment_reference=None):
+    def __init__(self, instance,payment_mode, amount, vendor_id, customer_id, invoice_id=None, purchase_id = None, payment_reference=None):
         
         """
     Initialize Payment: It expects either Admin or Staff instance for 'instance'
@@ -814,19 +840,23 @@ class Payment(db.Model, SerializerMixin):
     :param payment_reference: Optional payment reference number (like a transaction ID)
     """
         if invoice_id:
-            self.invoice_id = invoice_id
+            self.invoice_id = invoice_id   
 
         elif purchase_id:
             self.purchase_id = purchase_id
+            
 
         else:
             raise ValueError("Payment must be linked to either an invoice or a purchase.")    
 
+
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
 
         elif isinstance(instance, Staff)            :
             self.staff_id = instance.id
+            self.admin_id = 0
 
         else:
             raise ValueError("Payment can only be made by Admin or Staff")
@@ -837,6 +867,8 @@ class Payment(db.Model, SerializerMixin):
 
         self.payment_reference = payment_reference
         self.amount = amount
+        self.vendor_id = vendor_id
+        self.customer_id = customer_id
 
 
 
@@ -874,9 +906,11 @@ class Quotation(db.Model, SerializerMixin):
 
         if isinstance(instance, Admin):
             self.admin_id = instance.id
+            self.staff_id = 0
 
         elif isinstance(instance, Staff):
             self.staff_id = instance.id
+            self.admin_id = 0
 
         else:
             raise ValueError("Creator must be an Admin or Staff")
