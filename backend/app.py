@@ -19,13 +19,17 @@ class Staff(Resource):
 class Invoice(Resource):
     pass
 
+class Purchases(Resource):
+    pass
 
-
-
+class DeliveryNote(Resource):
+    pass
 
 api.add_resource(Admin, "/admin")
 api.add_resource(Staff, "/staff")
 api.add_resource(Invoice, "/invoice")
+api.add_resource(Purchase, "/purchase")
+api.add_resource(DeliveryNote, "/delivery_note")
 
 
 
