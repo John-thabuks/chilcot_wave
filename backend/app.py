@@ -20,12 +20,14 @@ def login():
     user = Users.query.filter_by(email=email).first()
 
     if user and user.authenticate_password(password):
+        claims = {"role": user.type}    #Based our model's User polymorphic_on =type
         access_token = create_access_token(
             identity={"email":email},
             expires_delta=timedelta(hours=1),    #Token expires after 1 hour
-            fresh=True
+            fresh=True,                          # Ideal for logins but not routes
+            additional_claims=claims             #Thw user is signed in as who: Admin or Staff
             )
-        
+
         return jsonify(access_token=access_token)
     else:
         return jsonify({"message":"Bad credentials"}, 401)
