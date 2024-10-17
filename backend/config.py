@@ -6,15 +6,23 @@ from flask_cors import CORS
 from sqlalchemy import MetaData
 from flask_uploads import UploadSet, configure_uploads
 import os
+from dotenv import load_dotenv
+
 
 # Flask
 app = Flask(__name__)
 
 metadata = MetaData()
 
+load_dotenv()
+
+
+
 #Configuring PDFs files upload for vat_file and delivery_file
 app.config["UPLOADED_INVOICE_DEST"] = "uploads/invoices"    # Folder for Invoice PDFs
 app.config["UPLOADED_DELIVERY_DEST"] = "uploads/delivery"   # Folder for Delivery PDFs
+
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")  # Set Flask's SECRET_KEY from the environment variable
 
 invoice_files = UploadSet("invoice", ("pdf",))  # Restrict to PDFs for invoices
 delivery_file = UploadSet("delivery", ("pdf",))
