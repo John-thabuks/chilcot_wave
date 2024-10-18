@@ -1,7 +1,7 @@
 from config import app, db
 from models import Users, Admin, Staff,CurrencyEnum, Customer, Vendor, Invoice, Purchase, VatEnum, Item, Category, SerialNumber, Currency, Lpo, PaymentModeEnum, Payment, Quotation, DeliveryNote, JobCardStatus, JobCard
 from flask_restful import Resource, Api
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 from flask import request, jsonify
 from datetime import timedelta
 
@@ -36,25 +36,75 @@ def login():
 
 def get_current_user():
     #extracting user id from JWT token
-    user_email = get_jwt_identity()
+    user_id = get_jwt_identity()
 
-    current_user = Users.query.get(user_email)
+    current_user = Users.query.get(user_id)
 
     print(f"{current_user.first_name}")
     return current_user
 
 #Permission helper
-def check_permissions(current_user, resource, action):
+def check_permissions(current_user, key, value):
     """
-    Check if the current user has the required permission for a specific resource.
-    For example: resource = 'vendor', action='c' (Create)
+    Check if the current user has the required permission for a specific key.
+    For example: key = 'vendor', value='c' (Create)
     """
 
     permissions = current_user.permissions_dict     #This is user's persmissions as a dict
 
-    if resource in permissions and action in permissions[resource]:
+    if key in permissions and value in permissions[key]:
         return True
     return False
+
+
+
+# Admin dashboard
+@app.route("/admin/dashboard", methods=["GET"])
+@jwt_required()
+def admin_dashboard():
+    current_user = get_current_user()
+
+    if current_user.type == "Admin":
+        return jsonify({"message": "Welcome to the Admin dashboard"}), 200
+    
+    else:
+        return jsonify({"error": "Only Admin allowed"}), 403
+
+
+
+# Staff dashboard
+@app.route("/staff/dashboard", methods=["GET"])
+@jwt_required()
+def staff_dashboard():
+    current_user = get_current_user()
+
+    if current_user.type == "Staff":
+        return jsonify({"message":"Welcome to the staff dashboard"}), 200
+    
+    else:
+        return jsonify({"error": "Only Staff allowed"}), 403
+
+
+
+
+
+
+# Customer dashboard
+@app.route("/customer/dashboard", methods=["GET"])
+@jwt_required()
+def customer_dashboard():
+    pass
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
