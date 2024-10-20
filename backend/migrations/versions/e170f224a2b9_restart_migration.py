@@ -1,8 +1,8 @@
-"""Initial-restore migration
+"""restart migration
 
-Revision ID: b30f761e4606
+Revision ID: e170f224a2b9
 Revises: 
-Create Date: 2024-10-08 08:50:19.423003
+Create Date: 2024-10-20 08:00:22.463399
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b30f761e4606'
+revision = 'e170f224a2b9'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -45,9 +45,12 @@ def upgrade():
     sa.Column('type', sa.String(), nullable=False),
     sa.Column('permissions', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email'),
+    sa.UniqueConstraint('email', name='uq_users_email'),
     sa.UniqueConstraint('username')
     )
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_users_email'), ['email'], unique=True)
+
     op.create_table('admins',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['users.id'], ),
@@ -75,8 +78,6 @@ def upgrade():
     )
     op.create_table('customers',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('email', sa.String(), nullable=False),
     sa.Column('phone', sa.Integer(), nullable=False),
     sa.Column('kra_pin', sa.String(), nullable=True),
     sa.Column('location', sa.String(), nullable=True),
@@ -86,17 +87,16 @@ def upgrade():
     sa.Column('date_last_updated', sa.DateTime(), nullable=True),
     sa.Column('active', sa.Boolean(), nullable=False),
     sa.Column('account_limit', sa.Integer(), nullable=False),
-    sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('staff_id', sa.Integer(), nullable=False),
+    sa.Column('admin_id', sa.Integer(), nullable=True),
+    sa.Column('staff_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
+    sa.ForeignKeyConstraint(['id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['staff_id'], ['staffs.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email'),
     sa.UniqueConstraint('phone')
     )
     with op.batch_alter_table('customers', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_customers_kra_pin'), ['kra_pin'], unique=True)
-        batch_op.create_index(batch_op.f('ix_customers_name'), ['name'], unique=True)
 
     op.create_table('jobcards',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -104,7 +104,7 @@ def upgrade():
     sa.Column('job_card_date', sa.Date(), nullable=True),
     sa.Column('job_card_status', sa.Enum('COMPLETED', 'IN_PROGRESS', 'CANCELED', name='jobcardstatus'), nullable=False),
     sa.Column('description', sa.String(), nullable=False),
-    sa.Column('quanity', sa.Integer(), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('admin_id', sa.Integer(), nullable=False),
     sa.Column('staff_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
@@ -136,8 +136,8 @@ def upgrade():
     sa.Column('currency', sa.Enum('KSHS', 'USD', 'POUND', 'EURO', name='currencyenum'), nullable=False),
     sa.Column('date_registered', sa.Date(), nullable=True),
     sa.Column('active', sa.Boolean(), nullable=True),
-    sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('staff_id', sa.Integer(), nullable=False),
+    sa.Column('admin_id', sa.Integer(), nullable=True),
+    sa.Column('staff_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
     sa.ForeignKeyConstraint(['staff_id'], ['staffs.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -260,12 +260,12 @@ def upgrade():
     sa.Column('date_paid', sa.Date(), nullable=True),
     sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('payment_reference', sa.String(), nullable=True),
-    sa.Column('invoice_id', sa.Integer(), nullable=False),
+    sa.Column('invoice_id', sa.Integer(), nullable=True),
     sa.Column('purchase_id', sa.Integer(), nullable=True),
     sa.Column('staff_id', sa.Integer(), nullable=False),
     sa.Column('admin_id', sa.Integer(), nullable=False),
-    sa.Column('vendor_id', sa.Integer(), nullable=False),
-    sa.Column('customer_id', sa.Integer(), nullable=False),
+    sa.Column('vendor_id', sa.Integer(), nullable=True),
+    sa.Column('customer_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['admin_id'], ['admins.id'], ),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoices.id'], ),
@@ -303,13 +303,15 @@ def downgrade():
     op.drop_table('quotations')
     op.drop_table('jobcards')
     with op.batch_alter_table('customers', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_customers_name'))
         batch_op.drop_index(batch_op.f('ix_customers_kra_pin'))
 
     op.drop_table('customers')
     op.drop_table('categories')
     op.drop_table('staffs')
     op.drop_table('admins')
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_users_email'))
+
     op.drop_table('users')
     with op.batch_alter_table('serial_numbers', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_serial_numbers_serial'))
