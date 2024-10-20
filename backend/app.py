@@ -20,12 +20,12 @@ def login():
     user = Users.query.filter_by(email=email).first()
 
     if user and user.authenticate_password(password):
-        claims = {"role": user.type}    #Based our model's User polymorphic_on =type
+        extra_information_claims = {"role": user.type}    #Based our model's User polymorphic_on =type
         access_token = create_access_token(
             identity=user.id,
             expires_delta=timedelta(hours=1),    #Token expires after 1 hour
             fresh=True,                          # Ideal for logins but not routes
-            additional_claims=claims             #Thw user is signed in as who: Admin or Staff
+            additional_claims=extra_information_claims             #Thw user is signed in as who: Admin or Staff
             )
 
         return jsonify(access_token=access_token)
@@ -41,9 +41,9 @@ def get_current_user():
     current_user = Users.query.get(user_id)
 
     print(f"{current_user.first_name}")
-    return current_user
+    return current_user                         #We returning the whole object
 
-#Permission helper
+#Permission helper: It is the 'permissions_dict' property we created in models
 def check_permissions(current_user, key, value):
     """
     Check if the current user has the required permission for a specific key.
@@ -62,9 +62,9 @@ def check_permissions(current_user, key, value):
 @app.route("/admin/dashboard", methods=["GET"])
 @jwt_required()
 def admin_dashboard():
-    current_user = get_current_user()
+    current_logged_in_user = get_current_user()
 
-    if current_user.type == "Admin":
+    if current_logged_in_user.type == "Admin":
         return jsonify({"message": "Welcome to the Admin dashboard"}), 200
     
     else:
@@ -76,13 +76,13 @@ def admin_dashboard():
 @app.route("/staff/dashboard", methods=["GET"])
 @jwt_required()
 def staff_dashboard():
-    current_user = get_current_user()
+    current_logged_in_user = get_current_user()
 
-    if current_user.type == "Staff":
+    if current_logged_in_user.type == "Staff":
         return jsonify({"message":"Welcome to the staff dashboard"}), 200
     
     else:
-        return jsonify({"error": "Only Staff allowed"}), 403
+        return jsonify({"error": "Only Staff allowed!!!"}), 403
 
 
 
@@ -93,7 +93,13 @@ def staff_dashboard():
 @app.route("/customer/dashboard", methods=["GET"])
 @jwt_required()
 def customer_dashboard():
-    pass
+    current_logged_in_user = get_current_user()
+
+    if current_logged_in_user.type == "Customer":
+        return jsonify({"message": "Welcome to Customer Dashboard"}), 200
+    
+    else:
+        return jsonify({"message": "Only customers allowed!!!"}), 403
 
 
 
