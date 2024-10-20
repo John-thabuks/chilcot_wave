@@ -48,7 +48,7 @@ class Users(db.Model, SerializerMixin):
     first_name = db.Column(db.String(), nullable=False)
     last_name = db.Column(db.String(), nullable=False)
     username = db.Column(db.String(), nullable=False, unique=True)
-    email = db.Column(db.String(), unique=True, nullable=False)
+    email = db.Column(db.String(), unique=True, nullable=False, index=True)
     _password_hash = db.Column(db.String(), nullable=False)
     type = db.Column(db.String(), nullable=False)   #Adimn or Staff
     permissions = db.Column(db.Text)    #Rights stored in JSON format
@@ -71,7 +71,9 @@ class Users(db.Model, SerializerMixin):
             raise ValueError("Username must be at least more that 3 characters long")
         return value
 
-
+    __table_args__ = (
+    db.UniqueConstraint('email', name='uq_users_email'),
+)
 
     @hybrid_property
     def password(self):
@@ -99,6 +101,108 @@ class Users(db.Model, SerializerMixin):
     def __repr__(self):
         return f"<Users {self.first_name} {self.last_name} {self.type}>"
     
+
+
+# Currency Enum
+class CurrencyEnum(enum.Enum):
+    KSHS = "Kshs"
+    USD = "USD"
+    POUND = "Pound"
+    EURO = "Euro"
+
+
+# Customer class
+class Customer(Users):
+    __tablename__ = "customers"
+
+    __mapper_args__ = {
+        "polymorphic_identity": "Customer"
+    }
+    
+
+    id =db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+    # name = db.Column(db.String(), nullable=False, index=True, unique=True)
+    # email = db.Column(db.String(), nullable=False, unique=True)
+    phone = db.Column(db.Integer(), nullable=False, unique=True)
+    kra_pin = db.Column(db.String(),nullable=True, unique=True, index=True)
+    location = db.Column(db.String())
+    country = db.Column(db.String(), default="Kenya")
+    currency = db.Column(SQLEnum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS)
+    date_enrolled = db.Column(db.Date(), default= db.func.current_date())
+    date_last_updated = db.Column(db.DateTime(), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    active = db.Column(db.Boolean(), default=True, nullable=False)
+    account_limit = db.Column(db.Integer(), nullable=False)
+
+
+    #foreignKey
+    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=True)  #Admin
+    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)  #staff
+
+    #initialize
+    def __init__(self, name, email, phone, kra_pin, location, country, active, account_limit, instance, password, **kwargs):
+
+        """
+        Initializes the Customer instance.
+        `name`, `email`, `phone`, `kra_pin`, `location`, and `country` are specific to Customer.
+        `password`, `email`, and login-related fields are inherited from Users.
+        """
+        super().__init__(first_name = name, last_name="", username=name, email=email, _password_hash = password, **kwargs)
+
+        if isinstance(instance, Admin):
+            self.admin_id = instance.id
+            self.staff_id = 0
+        elif isinstance(instance, Staff):
+            self.staff_id = instance.id
+            self.admin_id =0
+        else:
+            raise ValueError("Must be Admin of Staff")
+                
+        self.phone = phone
+        self.kra_pin = kra_pin
+        self.location = location
+        self.country = country        
+        self.date_last_updated = db.func.current_timestamp()
+        self.active = active
+        self.account_limit = account_limit
+        self.permissions_dict = {
+            'invoice': ['R'],
+            'delivery': ['R']
+        }
+        
+        
+    #Account limit change: Upward or Downward
+    def update_account_limit(self, new_account_limit, instance):
+        if not isinstance(instance, Admin):
+            raise PermissionError("Only Admin can update the account limit")
+        if new_account_limit < 0:
+            raise ValueError("Account limit must be greater than 0")
+        self.account_limit = new_account_limit
+        
+        self.active = new_account_limit > 0
+
+    #serialize
+    serialize_only =( "email", "phone", "kra_pin", "location","country", "currency", "date_enrolled", "date_last_updated", "active", "account_limit")
+
+    # # regex Constant for mail
+    # EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
+
+    # #validate
+    # @validates("email", "name", "phone")
+    # def validations(self, key, value):
+    #     if key == "email" and not re.match(self.EMAIL_REGEX, value):
+    #         raise ValueError("Invalid Email address ")
+        
+    #     if key == "name" and len(value) < 3:
+    #         raise ValueError("Name must be at least 3 characters long")
+        
+    #     if key == "phone" and not value.isdigit():
+    #         raise ValueError("Invalid phone number: Phone number must be a digit")
+    #     return value
+    
+
+    #Relationship        
+    payments = db.relationship("Payment", backref="customer", lazy=True)
+    invoices = db.relationship("Invoice", backref="customer", lazy=True)
 
 
 
@@ -165,7 +269,7 @@ class Staff( Users):
     purchases = db.relationship("Purchase", backref="staff", lazy=True)
     invoices = db.relationship("Invoice", backref="staff", lazy=True)
     vendors = db.relationship("Vendor", backref="staff", lazy=True)
-    customers = db.relationship("Customer", backref="staff", lazy=True)
+    customers = db.relationship("Customer", foreign_keys=[Customer.staff_id],  backref="staff", lazy=True)
 
 
 class Admin(Users):
@@ -206,94 +310,11 @@ class Admin(Users):
     purchases = db.relationship("Purchase", backref="admin", lazy=True)
     invoices =db.relationship("Invoice", backref="admin", lazy=True)
     vendors = db.relationship("Vendor", backref="admin", lazy=True)
-    customers = db.relationship("Customer", backref="admin", lazy=True)
+    customers = db.relationship("Customer", foreign_keys=[Customer.admin_id], backref="admin", lazy=True)
     staffs= db.relationship("Staff", backref="admin", lazy=True, foreign_keys=[Staff.admin_id])
 
 
-# Currency Enum
-class CurrencyEnum(enum.Enum):
-    KSHS = "Kshs"
-    USD = "USD"
-    POUND = "Pound"
-    EURO = "Euro"
 
-
-# Customer class
-class Customer(db.Model, SerializerMixin):
-    __tablename__ = "customers"
-    
-
-    id =db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False, index=True, unique=True)
-    email = db.Column(db.String(), nullable=False, unique=True)
-    phone = db.Column(db.Integer(), nullable=False, unique=True)
-    kra_pin = db.Column(db.String(),nullable=True, unique=True, index=True)
-    location = db.Column(db.String())
-    country = db.Column(db.String(), default="Kenya")
-    currency = db.Column(SQLEnum(CurrencyEnum), nullable=False, default=CurrencyEnum.KSHS)
-    date_enrolled = db.Column(db.Date(), default= db.func.current_date())
-    date_last_updated = db.Column(db.DateTime(), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    active = db.Column(db.Boolean(), default=True, nullable=False)
-    account_limit = db.Column(db.Integer(), nullable=False)
-
-
-    #foreignKey
-    admin_id = db.Column(db.Integer(), db.ForeignKey("admins.id"), nullable=True)  #Admin
-    staff_id = db.Column(db.Integer(), db.ForeignKey("staffs.id"), nullable=True)  #staff
-
-    #initialize
-    def __init__(self, name, email, phone, kra_pin, location, country, date_enrolled, date_last_updated, active, account_limit, instance):
-        if isinstance(instance, Admin):
-            self.admin_id = instance.id
-        elif isinstance(instance, Staff):
-            self.staff_id = instance.id
-        else:
-            raise ValueError("Must be Admin of Staff")
-        self.name = name
-        self.email = email
-        self.phone = phone
-        self.kra_pin = kra_pin
-        self.location = location
-        self.country = country
-        self.date_enrolled = date_enrolled    # Ensure this is included
-        self.date_last_updated = date_last_updated
-        self.active = active
-        self.account_limit = account_limit
-        
-        
-    #Account limit change: Upward or Downward
-    def update_account_limit(self, new_account_limit, instance):
-        if not isinstance(instance, Admin):
-            raise PermissionError("Only Admin can update the account limit")
-        if new_account_limit < 0:
-            raise ValueError("Account limit must be greater than 0")
-        self.account_limit = new_account_limit
-        
-        self.active = new_account_limit > 0
-
-    #serialize
-    serialize_only =("name", "email", "phone", "kra_pin", "location","country", "currency", "date_enrolled", "date_last_updated", "active", "account_limit")
-
-    # regex Constant for mail
-    EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"   #Constants defined with capital letters
-
-    #validate
-    @validates("email", "name", "phone")
-    def validations(self, key, value):
-        if key == "email" and not re.match(self.EMAIL_REGEX, value):
-            raise ValueError("Invalid Email address ")
-        
-        if key == "name" and len(value) < 3:
-            raise ValueError("Name must be at least 3 characters long")
-        
-        if key == "phone" and not value.isdigit():
-            raise ValueError("Invalid phone number: Phone number must be a digit")
-        return value
-    
-
-    #Relationship        
-    payments = db.relationship("Payment", backref="customer", lazy=True)
-    invoices = db.relationship("Invoice", backref="customer", lazy=True)
 
 
 #Vendor class
