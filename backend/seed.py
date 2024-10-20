@@ -137,6 +137,9 @@ with app.app_context():
     def generate_kra_pin():
         return "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
     
+    username = fake.user_name()
+    if len(username) <=3:
+        username += "@123"
 
     for _ in range(5):
 
@@ -144,8 +147,9 @@ with app.app_context():
         creator = random.choice(admin_obj + staff_members)
 
         customer = Customer(
-            name= fake.name(),
+            name=fake.first_name(),
             email = fake.email(),
+            password= "@Password1234",
             phone= ''.join(filter(str.isdigit, fake.phone_number())),
             kra_pin= generate_kra_pin(),
             location= fake.address(),
@@ -154,8 +158,16 @@ with app.app_context():
             date_last_updated = fake.date_between(start_date='-1y', end_date='today'),
             active= True,
             account_limit= random.randint(100_000, 3_000_000),
-            instance = creator
+            instance = creator,
+            
         )
+
+        # Assign permissions for staff via permissions_dict property
+        staff.permissions_dict = {
+            'invoice': ['R'],
+            'delivery': ['R']
+        }
+        
         db.session.add(customer)        
         db.session.flush()
         customer_members_ids.append(customer.id)
