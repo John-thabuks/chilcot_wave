@@ -140,7 +140,6 @@ def admin_staff_route():
             db.session.rollback()   # roll back in case of an error
             return jsonify({"error": str(e)}), 500
 
-        return jsonify(new_staff.to_dict()), 201
 
 
 
