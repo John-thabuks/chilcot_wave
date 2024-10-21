@@ -1,11 +1,9 @@
 from config import app, db
-from models import Users, Admin, Staff,CurrencyEnum, Customer, Vendor, Invoice, Purchase, VatEnum, Item, Category, SerialNumber, Currency, Lpo, PaymentModeEnum, Payment, Quotation, DeliveryNote, JobCardStatus, JobCard
-from flask_restful import Resource, Api
+from models import Users, Admin, Staff,CurrencyEnum, Customer, Vendor, Invoice, Purchase, VatEnum, Item, Category, SerialNumber, Currency, Lpo, PaymentModeEnum, Payment, Quotation, DeliveryNote, JobCardStatus, JobCard, DepartmentEnum, EmploymentStatusEnum
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 from flask import request, jsonify
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-api = Api(app)
 
 jwt = JWTManager(app)
 
@@ -69,6 +67,91 @@ def admin_dashboard():
     
     else:
         return jsonify({"error": "Only Admin allowed"}), 403
+
+
+# Admin - Staff
+@app.route("/admin/staff", methods=["GET", "POST"])
+@jwt_required()
+def admin_staff_route():
+    current_logged_in_user = get_current_user()
+
+    if current_logged_in_user.type != "Admin":
+        return jsonify({"error": "Only Admin allowed"}), 403
+    
+
+    if request.method == "GET":
+        all_staff = Staff.query.all()
+        
+        # Convert the staff objects to a serializable format
+        staff_register = [staff.to_dict() for staff in all_staff]
+
+        return jsonify(staff_register), 200  # Return with a status code 200 OK
+    
+    elif request.method == "POST":
+        # we get data from form data
+        data = request.get_json()
+        first_name = data.get("first_name")
+        last_name = data.get("last_name")
+        username = data.get("username")
+        email = data.get("email")
+        date_employed = data.get("date_employed")   # This date is in a string type 
+        department = data.get("department")
+        employment_status = data.get("employment_status", EmploymentStatusEnum.ONGOING)
+
+        #Convert date from string to python date object
+        try:
+            d_employed = datetime.strptime(date_employed, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid date format"}), 400
+        
+        #Validate the the fields
+        if not first_name or not last_name or not username or not email or not department:
+            return jsonify({"error": "Please fill all fields"}), 400
+        
+        # Lets sort the department Enum
+        try:
+            department_enum = DepartmentEnum[department]
+        
+        except KeyError:
+            return jsonify({"error": "Invalid department"}), 400
+        
+        #Now lets create the instance
+        new_staff = Staff(
+            first_name=first_name,
+            last_name = last_name,
+            username = username,
+            email = email,
+            date_employed= d_employed,
+            department= department_enum,
+            employment_status = employment_status
+        )
+
+        db.session.add(new_staff)
+        db.session.commit()
+
+        return jsonify(new_staff.to_dict()), 201
+
+
+
+#Admi - secific staff
+app.route("/admin/staff/<int:id>", methods=["GET", "POST", "PATCH", "DELETE"])
+@jwt_required()
+def admin_staff_id_route(id):
+    current_logged_user = get_current_user()
+
+    if current_logged_user.type == "Admin":
+        if request.method == "GET":
+            pass
+
+        elif request.method == "POST":
+            pass
+
+        elif request.method == "PATCH":
+            pass
+
+        else:
+            pass
+            
 
 
 
