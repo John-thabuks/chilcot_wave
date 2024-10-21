@@ -97,6 +97,7 @@ def admin_staff_route():
         date_employed = data.get("date_employed")   # This date is in a string type 
         department = data.get("department")
         employment_status = data.get("employment_status", EmploymentStatusEnum.ONGOING)
+        password = data.get("password")
 
         #Convert date from string to python date object
         try:
@@ -105,7 +106,7 @@ def admin_staff_route():
             return jsonify({"error": "Invalid date format"}), 400
         
         #Validate the the fields
-        if not first_name or not last_name or not username or not email or not department:
+        if not first_name or not last_name or not username or not email or not department or not password:
             return jsonify({"error": "Please fill all fields"}), 400
         
         # Lets sort the department Enum
@@ -123,11 +124,21 @@ def admin_staff_route():
             email = email,
             date_employed= d_employed,
             department= department_enum,
-            employment_status = employment_status
+            employment_status = employment_status,
+            admin_id = current_logged_in_user.id
         )
 
-        db.session.add(new_staff)
-        db.session.commit()
+        #set password using the password setter
+        new_staff.password = password
+
+        try:
+            db.session.add(new_staff)
+            db.session.commit()
+            return jsonify({"message": "Staff created successfully"}), 201
+        
+        except Exception as e:
+            db.session.rollback()   # roll back in case of an error
+            return jsonify({"error": str(e)}), 500
 
         return jsonify(new_staff.to_dict()), 201
 
