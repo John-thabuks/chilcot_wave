@@ -146,7 +146,7 @@ class Customer(Users):
         `name`, `email`, `phone`, `kra_pin`, `location`, and `country` are specific to Customer.
         `password`, `email`, and login-related fields are inherited from Users.
         """
-        super().__init__(first_name = name, last_name="", username=name, email=email, _password_hash = password, **kwargs)
+        super().__init__(first_name = name, last_name="", username=name, email=email, password = password, **kwargs)
 
         if isinstance(instance, Admin):
             self.admin_id = instance.id
@@ -284,6 +284,7 @@ class Admin(Users):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.permissions_dict = {
+            'staff': ['C', 'R', 'U', 'D'],
             'vendor': ['C', 'R', 'U', 'D'],   # Admin can Create, Read, Update, Delete vendors
             'customer': ['C', 'R', 'U', 'D'],  
             'invoice': ['C', 'R', 'U', 'D'],  
