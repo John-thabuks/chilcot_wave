@@ -269,6 +269,29 @@ def admin_staff_id_route(id):
 
 
 
+
+# admin dashboard Vendor
+@app.route("/admin/dashboard/vendor", methods=["GET"])
+@jwt_required()
+def admin_vendor_route():
+    current_logged_user = get_current_user()
+
+    if current_logged_user.type != "Admin":
+        return jsonify({"Error": "Only Admin allowed"}), 403
+
+    if request.method == "GET":
+        all_vendors = Vendor.query.all()
+
+        vendors = [vendor.to_dict() for vendor in all_vendors]
+
+        return jsonify(vendors), 200
+
+
+
+
+
+
+
 # Staff dashboard
 @app.route("/staff/dashboard", methods=["GET"])
 @jwt_required()
@@ -280,6 +303,18 @@ def staff_dashboard():
     
     else:
         return jsonify({"error": "Only Staff allowed!!!"}), 403
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
