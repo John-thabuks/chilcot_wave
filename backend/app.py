@@ -70,7 +70,7 @@ def admin_dashboard():
 
 
 # Admin - Staff
-@app.route("/admin/staff", methods=["GET", "POST"])
+@app.route("/admin/dashboard/staff", methods=["GET", "POST"])
 @jwt_required()
 def admin_staff_route():
     current_logged_in_user = get_current_user()
@@ -109,7 +109,7 @@ def admin_staff_route():
         if not first_name or not last_name or not username or not email or not department or not password:
             return jsonify({"error": "Please fill all fields"}), 400
         
-        # Lets sort the department Enum
+        # Lets sort the department Enum: Selection from drop down menu
         try:
             department_enum = DepartmentEnum[department]
         
@@ -144,7 +144,7 @@ def admin_staff_route():
 
 
 #Admi - secific staff
-app.route("/admin/staff/<int:id>", methods=["GET", "POST", "PATCH", "DELETE"])
+app.route("/admin/dashboard/staff/<int:id>", methods=["GET", "POST", "PATCH", "DELETE"])
 @jwt_required()
 def admin_staff_id_route(id):
     current_logged_user = get_current_user()
