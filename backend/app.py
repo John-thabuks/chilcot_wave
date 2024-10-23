@@ -3,6 +3,7 @@ from models import Users, Admin, Staff,CurrencyEnum, Customer, Vendor, Invoice, 
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 from flask import request, jsonify
 from datetime import datetime, timedelta
+from sqlalchemy.orm import class_mapper
 
 
 jwt = JWTManager(app)
@@ -141,27 +142,130 @@ def admin_staff_route():
             return jsonify({"error": str(e)}), 500
 
 
+def has_associations(staff_member):
+    """
+    Check if the staff member has any associated records in related tables.
+    Returns a dictionary of relationships and whether they have records.
+    """
+    related_data = {}
 
+    for relationship in class_mapper(staff_member.__class__).relationships:
+        related_records = getattr(staff_member, relationship.key)
+
+        if related_records and (isinstance(related_records, list) and len(related_records) > 0):
+            related_data[relationship.key] = True
+
+        elif related_records is not None:
+            related_data[relationship.key] = True
+
+    return related_data
 
 #Admi - secific staff
-app.route("/admin/dashboard/staff/<int:id>", methods=["GET", "POST", "PATCH", "DELETE"])
+@app.route("/admin/dashboard/staff/<int:id>", methods=["GET", "PATCH", "DELETE"])
 @jwt_required()
 def admin_staff_id_route(id):
     current_logged_user = get_current_user()
 
-    if current_logged_user.type == "Admin":
-        if request.method == "GET":
-            pass
+    if current_logged_user.type != "Admin":
+        return jsonify({"Error": "Only Admin allowed"}), 403
+    
+    staff_member = Staff.query.get(id)
+    print(f"Staff member found: {staff_member}")
 
-        elif request.method == "POST":
-            pass
+    if  request.method == "GET":
+        
+        if not staff_member:
+            return jsonify({"Error": "Staff does not exist"}), 404
+        
+        response = {
+            "id": staff_member.id,
+            "first_name": staff_member.first_name,
+            "last_name": staff_member.last_name,
+            "username": staff_member.username,
+            "email": staff_member.email,
+            "permissions": staff_member.permissions,  
+            "date_employed": staff_member.date_employed.strftime("%Y-%m-%d") if staff_member.date_employed else None,
+            "department": staff_member.department.name,
+            "employment_status": staff_member.employment_status.name,
+            "date_exited": staff_member.date_exited.stftime("%Y-%m-%d") if staff_member.date_exited else None,
+        }
 
-        elif request.method == "PATCH":
-            pass
+        return jsonify(response), 200
 
-        else:
-            pass
+    elif request.method == "PATCH":
+        
+        if not staff_member:
+            return jsonify({"Error": "Staff does not exist"}), 404
+        
+        data = request.get_json()
+
+        # department Enum
+        try:
+            d_enum = data.get("department")
+            if d_enum:      # Only process if department is provided          
+                staff_department = DepartmentEnum[d_enum]
             
+            else:
+                staff_department = staff_member.department
+
+        except KeyError:
+            return jsonify({"Error": "Invalid department"}), 400
+        
+        #Date: turn it from a string to python date
+        try:
+            if "date_employed" in data:
+                employed = data.get("date_employed")
+                date_employed = datetime.strptime(employed, "%Y-%m-%d").date()
+                
+            else:
+                date_employed = staff_member.date_employed
+
+            if "date_exited" in data:
+                exited = data.get("date_exited")
+                date_exited = datetime.strptime(exited, "%Y-%m-%d").date()
+            else:
+                date_exited = staff_member.date_exited
+
+        except ValueError:
+            return jsonify({"Error": "Invalid date"}), 400
+
+        try:
+
+            staff_member.first_name = data.get("first_name", staff_member.first_name)
+            staff_member.last_name = data.get("last_name", staff_member.last_name)
+            staff_member.username = data.get("username", staff_member.username)
+            staff_member.email = data.get("email", staff_member.email)
+            staff_member.date_employed = date_employed
+            staff_member.department = staff_department
+            staff_member.date_exited = date_exited
+
+            db.session.commit()
+            return jsonify({"Message": "Staff member updated successfully!"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Error": str(e)}), 400
+
+
+    elif request.method == "DELETE":
+        if not staff_member:
+            return jsonify({"Error": "Staff member not found"}), 404
+
+        associated_records = has_associations(staff_member)
+
+        if associated_records:
+            error_message = "Cannot delete staff member reason being has associations in: " + ", ".join(associated_records.keys())
+            return jsonify({"Error": error_message}), 400
+
+        try:
+            db.session.delete(staff_member)
+            db.session.commit()
+            return jsonify({"Message": "Staff member deleted successfully"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Message": str(e)}), 400
+
 
 
 
