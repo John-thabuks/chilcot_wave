@@ -267,7 +267,7 @@ def admin_staff_id_route(id):
             return jsonify({"Message": str(e)}), 400
 
 
-
+#------------------------------------------------------------------------
 
 
 # admin dashboard Vendor
@@ -344,9 +344,31 @@ def admin_vendor_route():
 
 
 
+# admin dashboard Vendor id
+@app.route("/admin/dashboard/vendor/<int:id>", methods=["GET", "PATCH", "DELETE"])
+@jwt_required()
+def admin_vendor_route(id):
+
+    current_logged_user = get_current_user()
+
+    if current_logged_user.type != "Admin":
+        return jsonify({"Error":"Only Admin allowed"}), 403
+    
+    if request.method == "GET":
+        pass
+
+    elif request.method == "PATCH":
+        pass
+
+    elif request.method == "DELETE":
+        pass
 
 
 
+
+
+
+# -------------------------------------------------------------------------
 
 # Staff dashboard
 @app.route("/staff/dashboard", methods=["GET"])
