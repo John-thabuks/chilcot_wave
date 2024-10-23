@@ -232,7 +232,7 @@ class Staff( Users):
     date_exited = db.Column(db.Date(), nullable=True)
 
     #Serialize the Staff: It automatically inherit the SerializeMixin form Users
-    serialize_only = ('id', 'first_name', 'last_name', 'username', 'email', 'permissions', 'date_employed', 'department', 'employment_status')
+    serialize_only = ('id', 'first_name', 'last_name', 'username', 'email', 'permissions', 'date_employed', 'department', 'employment_status', 'date_exited')
 
 
     def __init__(self, date_employed, department, date_exited=None,  **kwargs):     #date_employed, department and date_exited are specif attributes hence in the constructor
