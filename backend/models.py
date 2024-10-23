@@ -357,7 +357,7 @@ class Vendor(db.Model, SerializerMixin):
 
 
     #serialize
-    serialize_only = ("name", "email", "phone", "kra_pin")
+    serialize_only = ("name", "email", "phone", "kra_pin", "location", "country", "currency", "date_registered")
 
     #initialize
     def __init__(self, name, email, phone, kra_pin, location, country, instance, currency=CurrencyEnum.KSHS) -> None:
