@@ -271,7 +271,7 @@ def admin_staff_id_route(id):
 
 
 # admin dashboard Vendor
-@app.route("/admin/dashboard/vendor", methods=["GET"])
+@app.route("/admin/dashboard/vendor", methods=["GET", "POST"])
 @jwt_required()
 def admin_vendor_route():
     current_logged_user = get_current_user()
@@ -285,6 +285,62 @@ def admin_vendor_route():
         vendors = [vendor.to_dict() for vendor in all_vendors]
 
         return jsonify(vendors), 200
+
+    elif request.method == "POST":
+        data = request.get_json()
+
+        name = data.get("name")
+        email = data.get("email")
+        phone = data.get("phone")
+        kra_pin = data.get("kra_pin")
+        location = data.get("location")
+        country = data.get("country")
+        currency = data.get("currency")
+
+        #Validate required field
+        if not name or not email or not kra_pin or not phone:
+            return jsonify({"Error":"Missing required fields"}), 400
+
+        #Phone is an Integer in db
+        phone_str = str(phone)
+
+        if not phone_str.isdigit():
+            return jsonify({"Error":"Phone must be a twelve digits"}), 403
+        
+        #Check for duplicate Vendor name and email
+        existing_vendor = Vendor.query.filter((Vendor.name == name) | (Vendor.email == email)).first()
+
+        if existing_vendor:
+            return jsonify({"Error": "Vendor already exists"}), 400
+        
+        #Currency enum
+        try:
+            currency_enum = CurrencyEnum[currency]
+
+        except KeyError:
+            return jsonify({"Error":"Invalid currency key"}), 403
+        
+        
+        #create the instance
+        new_vendor = Vendor(
+            name=name,
+            email=email,
+            phone=phone_str,
+            kra_pin=kra_pin,
+            location=location,
+            country=country,
+            currency=currency_enum,
+            instance=current_logged_user
+        )
+
+        try:
+            db.session.add(new_vendor)
+            db.session.commit()
+            return jsonify({"Message":"Vendor created successfully"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Error": str(e)}), 400
 
 
 
