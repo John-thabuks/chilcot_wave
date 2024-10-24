@@ -70,6 +70,10 @@ def admin_dashboard():
         return jsonify({"error": "Only Admin allowed"}), 403
 
 
+
+# -------------------------------------------------------------
+
+
 # Admin - Staff
 @app.route("/admin/dashboard/staff", methods=["GET", "POST"])
 @jwt_required()
@@ -142,20 +146,17 @@ def admin_staff_route():
             return jsonify({"error": str(e)}), 500
 
 
-def has_associations(staff_member):
+def has_associations(member):
     """
     Check if the staff member has any associated records in related tables.
     Returns a dictionary of relationships and whether they have records.
     """
     related_data = {}
 
-    for relationship in class_mapper(staff_member.__class__).relationships:
-        related_records = getattr(staff_member, relationship.key)
+    for relationship in class_mapper(member.__class__).relationships:
+        related_records = getattr(member, relationship.key)
 
         if related_records and (isinstance(related_records, list) and len(related_records) > 0):
-            related_data[relationship.key] = True
-
-        elif related_records is not None:
             related_data[relationship.key] = True
 
     return related_data
@@ -282,6 +283,7 @@ def admin_vendor_route():
     if request.method == "GET":
         all_vendors = Vendor.query.all()
 
+
         vendors = [vendor.to_dict() for vendor in all_vendors]
 
         return jsonify(vendors), 200
@@ -356,11 +358,23 @@ def admin_vendor_id_route(id):
     
     #Getting a specific vendor
     vendor = Vendor.query.get(id)
+
     if request.method == "GET":
         
         try:
             if vendor:
-                return jsonify(vendor.to_dict()), 200
+                response ={
+                    "name" : vendor.name,
+                    "email" : vendor.email,
+                    "phone" : vendor.phone,
+                    "kra_pin" : vendor.kra_pin,
+                    "location" : vendor.location,
+                    "country" : vendor.country,
+                    "currency" : vendor.currency.name,
+                    "date_registered" : vendor.date_registered
+                    }
+
+                return jsonify(response), 200
 
         except Exception as e:
             return jsonify({"Error": str(e)}), 400
@@ -415,7 +429,22 @@ def admin_vendor_id_route(id):
 
 
     elif request.method == "DELETE":
-        pass
+        
+        if not vendor:
+            return jsonify({"Error": "Vendor not found"}), 404
+        
+        check_assosiation = has_associations(vendor)
+
+        if check_assosiation:
+            return jsonify({"Error":"Cannot deleted Vendor because there exist associations in: " + ", ".join(check_assosiation.keys())}), 400
+        
+        try:
+            db.session.delete(vendor)
+            db.session.commit()
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Error": str(e)}), 400
 
 
 
