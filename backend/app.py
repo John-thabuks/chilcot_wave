@@ -570,6 +570,62 @@ def admin_customer_id_route(id):
         return jsonify(response), 200
 
 
+    if request.method == "PATCH":
+
+        if not customer:
+            return jsonify({"Error": "Customer not found"}), 404
+        
+        customer_update = request.get_json()
+
+        try:            
+            currency_update = customer_update.get("currency")
+
+            if currency_update:
+                currency = CurrencyEnum[currency_update]
+
+            else:
+                currency = customer.currency
+
+        except ValueError:
+            return jsonify({"Error": "Invalid currency"}), 400
+
+
+        try:
+            customer_date = customer_update.get("date_enrolled")
+            
+            if customer_date:
+                
+                date_enrolled = datetime.strptime(customer_date, "%Y-%m-%d").date()
+            
+            else:
+                date_enrolled = customer.date_enrolled
+
+        except ValueError:
+            return jsonify({"Error": "Wrong date format"}), 403
+
+
+        customer.account_limit = customer_update.get("account_limit", customer.account_limit)
+        customer.active = customer_update.get("active", customer.active)
+        customer.country = customer_update.get("country", customer.country)
+        customer.currency = currency
+        customer.date_enrolled = date_enrolled
+        customer.email = customer_update.get("email", customer.email)
+        customer.kra_pin = customer_update.get("kra_pin", customer.kra_pin)
+        customer.location = customer_update.get("location", customer.location)
+        customer.phone = customer_update.get("phone", customer.phone)
+        customer.first_name = customer_update.get("first_name", customer.first_name)
+        customer.last_name = customer_update.get("last_name", customer.last_name)
+        customer.username = customer_update.get("username", customer.username)
+
+        try:
+            db.session.add(customer)
+            db.session.commit()
+            return jsonify({"Message": "Customer updated successfully!"}), 200
+
+        except Exception as e:
+            
+            db.session.rollback()
+            return jsonify({"Error": str(e)})
 
 
 
