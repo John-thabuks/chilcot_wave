@@ -146,7 +146,7 @@ class Customer(Users):
         `name`, `email`, `phone`, `kra_pin`, `location`, and `country` are specific to Customer.
         `password`, `email`, and login-related fields are inherited from Users.
         """
-        super().__init__(first_name = name, last_name="", username=name, email=email, password = password, **kwargs)
+        super().__init__(first_name = name, last_name="", email=email, password = password, **kwargs)
 
         if isinstance(instance, Admin):
             self.admin_id = instance.id
