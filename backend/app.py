@@ -347,18 +347,72 @@ def admin_vendor_route():
 # admin dashboard Vendor id
 @app.route("/admin/dashboard/vendor/<int:id>", methods=["GET", "PATCH", "DELETE"])
 @jwt_required()
-def admin_vendor_route(id):
+def admin_vendor_id_route(id):
 
     current_logged_user = get_current_user()
 
     if current_logged_user.type != "Admin":
         return jsonify({"Error":"Only Admin allowed"}), 403
     
+    #Getting a specific vendor
+    vendor = Vendor.query.get(id)
     if request.method == "GET":
-        pass
+        
+        try:
+            if vendor:
+                return jsonify(vendor.to_dict()), 200
+
+        except Exception as e:
+            return jsonify({"Error": str(e)}), 400
+
 
     elif request.method == "PATCH":
-        pass
+
+        if not vendor:
+            return jsonify({"Error": "Vendor does not exist"}), 404
+        
+        data = request.get_json()
+        
+        try:
+            phone_no = data.get("phone")
+            if phone_no is None:
+                phone = vendor.phone 
+
+            else:        
+                phone = str(phone_no)
+            
+        except ValueError as e:
+            return jsonify({"Error": str(e)}), 400
+        
+        try:
+            currency_enum = data.get("currency")
+            if currency_enum:
+                currency = CurrencyEnum[currency_enum]
+
+            else:
+                currency = vendor.currency
+
+        except ValueError:
+            return jsonify({"Error": "currency key not available"}), 400
+
+        vendor.name = data.get("name", vendor.name)
+        vendor.email = data.get("email", vendor.email)
+        vendor.phone = phone
+        vendor.kra_pin = data.get("kra_pin", vendor.kra_pin)
+        vendor.location = data.get("location", vendor.location)
+        vendor.country = data.get("country", vendor.country)
+        vendor.currency = currency
+        vendor.instance = current_logged_user
+
+        try:
+            db.session.add(vendor)
+            db.session.commit()
+            return jsonify({"Message": "Vendor updated successfully"})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Error": str(e)})
+
 
     elif request.method == "DELETE":
         pass
