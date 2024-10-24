@@ -485,6 +485,49 @@ def admin_customer_route():
         customers = [customer.to_dict() for customer in all_customers]
 
         return jsonify(customers), 200
+    
+    if request.method == "POST":
+
+        data = request.get_json()
+
+        name = data.get("name")
+        username = data.get("username")
+        email = data.get("email")
+        password = data.get("password")
+        phone = data.get("phone")
+        kra_pin = data.get("kra_pin")
+        location = data.get("location")
+        country = data.get("country")
+        currency = data.get("currency")
+        account_limit = data.get("account_limit")
+        active = data.get("active")
+
+        if not name or not email or not phone or not kra_pin or not location or not country or not currency or not account_limit:
+            return jsonify({"Error": "All fields required!"}), 400
+        
+        new_customer = Customer(
+            name= name,
+            active=active,
+            username=username,
+            email=email,
+            password = password,
+            phone=phone,
+            kra_pin=kra_pin,
+            location=location,
+            country=country,
+            currency=CurrencyEnum[currency],
+            account_limit=account_limit,
+            instance = current_logged_user
+        )
+
+        try:
+            db.session.add(new_customer)
+            db.session.commit()
+            return jsonify({"Message": "Customer created successfully!"})
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"Error": str(e)}), 500
 
 
 
