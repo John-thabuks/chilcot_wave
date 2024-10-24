@@ -56,6 +56,7 @@ def check_permissions(current_user, key, value):
     return False
 
 
+# Start of Admin dashboard
 
 # Admin dashboard
 @app.route("/admin/dashboard", methods=["GET"])
@@ -70,9 +71,29 @@ def admin_dashboard():
         return jsonify({"error": "Only Admin allowed"}), 403
 
 
+def has_associations(member):
+    """
+    Check if the staff member has any associated records in related tables.
+    Returns a dictionary of relationships and whether they have records.
+    """
+    related_data = {}
+
+    for relationship in class_mapper(member.__class__).relationships:
+        related_records = getattr(member, relationship.key)
+
+        if related_records and (isinstance(related_records, list) and len(related_records) > 0):
+            related_data[relationship.key] = True
+
+    return related_data
+
+
+# End of Admin dashboard
+
 
 # -------------------------------------------------------------
+#-------------------------Staff Permissions---------------------------
 
+# Start of Staff Permissions
 
 # Admin - Staff
 @app.route("/admin/dashboard/staff", methods=["GET", "POST"])
@@ -146,20 +167,6 @@ def admin_staff_route():
             return jsonify({"error": str(e)}), 500
 
 
-def has_associations(member):
-    """
-    Check if the staff member has any associated records in related tables.
-    Returns a dictionary of relationships and whether they have records.
-    """
-    related_data = {}
-
-    for relationship in class_mapper(member.__class__).relationships:
-        related_records = getattr(member, relationship.key)
-
-        if related_records and (isinstance(related_records, list) and len(related_records) > 0):
-            related_data[relationship.key] = True
-
-    return related_data
 
 #Admi - secific staff
 @app.route("/admin/dashboard/staff/<int:id>", methods=["GET", "PATCH", "DELETE"])
@@ -268,7 +275,12 @@ def admin_staff_id_route(id):
             return jsonify({"Message": str(e)}), 400
 
 
+# End of Staff Permissions
+
 #------------------------------------------------------------------------
+#-------------------------Admin Vendor Permissions---------------------------
+
+# Start of Vendor Permissions
 
 
 # admin dashboard Vendor
@@ -447,11 +459,58 @@ def admin_vendor_id_route(id):
             return jsonify({"Error": str(e)}), 400
 
 
+# End of Staff Permissions
+
+
+#-------------------------Admin Customer Permissions---------------------------
+
+
+# Start of Customer Permissions
+
+#Admin gets all customer/ Admin post's a customer
+
+@app.route("/admin/dashboard/customer", methods =["GET", "POST"])
+@jwt_required()
+def admin_customer_route():
+    
+    current_logged_user = get_current_user()
+
+    if current_logged_user.type != "Admin":
+        return jsonify({"Error":"Only admin allowed"}), 403
+    
+    if request.method == "GET":
+
+        all_customers = Customer.query.all()
+
+        customers = [customer.to_dict() for customer in all_customers]
+
+        return jsonify(customers), 200
 
 
 
 
-# -------------------------------------------------------------------------
+#Admin gets/ update's/ Delete's a specific customer
+@app.route("/admin/dashboard/customer/<int:id>", methods=["GET", "PATCH", "DELETE"])
+@jwt_required
+def admin_customer_id_route(id):
+    pass
+
+
+
+
+
+
+# End of Staff Permissions
+
+
+
+
+# ------------------------------------------------------------------------
+
+#-------------------------Staff Dashboard---------------------------
+
+# Start of Staff Dashboard
+
 
 # Staff dashboard
 @app.route("/staff/dashboard", methods=["GET"])
@@ -474,7 +533,7 @@ def staff_dashboard():
 
 
 
-
+# End of Staff Dashboard
 
 
 
