@@ -532,11 +532,42 @@ def admin_customer_route():
 
 
 
+
 #Admin gets/ update's/ Delete's a specific customer
 @app.route("/admin/dashboard/customer/<int:id>", methods=["GET", "PATCH", "DELETE"])
-@jwt_required
+@jwt_required()
 def admin_customer_id_route(id):
-    pass
+    
+    current_logged_user = get_current_user()
+
+    if current_logged_user.type != "Admin":
+        return jsonify({"Error": "Only Admin allowed"}), 403
+    
+    customer = Customer.query.get(id)
+
+
+    if request.method == "GET":
+        
+        if not customer:
+            return jsonify({"Error": "Customer doesn't exist"}), 404
+        
+        response = {
+            "account_limit": customer.account_limit,
+            "active": customer.active,
+            "country": customer.country,
+            "currency": customer.currency.name,
+            "date_enrolled": customer.date_enrolled,
+            "date_last_updated": customer.date_last_updated,
+            "email": customer.email,
+            "kra_pin": customer.kra_pin,
+            "location": customer.location,
+            "phone": customer.phone,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "username": customer.username            
+        }
+
+        return jsonify(response), 200
 
 
 
